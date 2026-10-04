@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>VIRAL LINK HUB - Netflix-Style Telegram Mini App</title>
+
+  <!-- Telegram WebApp SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <!-- Tailwind CSS CDN with Custom Theme Config -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            netflix: {
+              red: '#E50914',
+              redHover: '#B80710',
+              black: '#141414',
+              dark: '#0c0c0e',
+              surface: '#1b1b22',
+              card: 'rgba(28, 28, 36, 0.75)',
+              border: 'rgba(255, 255, 255, 0.08)',
+            }
+          },
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+            mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+          },
+          boxShadow: {
+            'glow-red': '0 0 25px rgba(229, 9, 20, 0.55)',
+            'glow-green': '0 0 30px rgba(16, 185, 129, 0.75)',
+            'glow-blue': '0 0 25px rgba(14, 165, 233, 0.5)',
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- FontAwesome 6 Icons CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <style>
+    /* Smooth Netflix-style horizontal scrollbars */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* Glassmorphism effects */
+    .glass-card {
+      background: rgba(22, 24, 32, 0.75);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    /* Card zoom on hover */
+    .netflix-card {
+      transition: transform 0.28s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.28s ease;
+    }
+    .netflix-card:hover {
+      transform: scale(1.04) translateY(-3px);
+      box-shadow: 0 14px 28px rgba(0, 0, 0, 0.8), 0 0 15px rgba(229, 9, 20, 0.3);
+      z-index: 20;
+    }
+
+    /* Animated pulse badge */
+    @keyframes subtlePulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.85; transform: scale(1.02); }
+    }
+    .animate-subtle-pulse {
+      animation: subtlePulse 2.5s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="bg-[#141414] text-gray-100 min-h-screen antialiased selection:bg-netflix-red selection:text-white pb-16 font-sans">
+
+  <!-- ================= MANDATORY TELEGRAM JOIN POPUP (NON-DISMISSIBLE) ================= -->
+  <div id="mandatoryJoinModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl">
+    <div class="relative w-full max-w-md glass-card rounded-3xl border border-sky-500/30 overflow-hidden shadow-2xl p-6 sm:p-7 text-center space-y-5 animate-in zoom-in-95 duration-200">
+      
+      <!-- Top Telegram Glow Icon -->
+      <div class="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-tr from-sky-600 to-sky-400 text-white flex items-center justify-center text-3xl shadow-glow-blue">
+        <i class="fa-brands fa-telegram"></i>
+      </div>
+
+      <!-- Heading & Pitch -->
+      <div class="space-y-2">
+        <span class="text-[10px] font-mono uppercase tracking-widest text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2.5 py-0.5 rounded-full">
+          Verification Required
+        </span>
+        <h2 class="text-xl sm:text-2xl font-black text-white tracking-tight">
+          Join Our Official Channel to Access Premium Content
+        </h2>
+        <p class="text-xs text-gray-300 leading-relaxed">
+          To maintain high-speed cloud servers and prevent automated bot traffic, all visitors must join our official Telegram channel before streaming.
+        </p>
+      </div>
+
+      <!-- Perks Box -->
+      <div class="bg-black/60 border border-white/10 rounded-2xl p-3.5 text-left space-y-2 text-xs">
+        <div class="flex items-center gap-2.5 text-gray-300">
+          <i class="fa-solid fa-bolt text-amber-400 text-xs"></i>
+          <span>Instant access to Server 1 HD 4K streams</span>
+        </div>
+        <div class="flex items-center gap-2.5 text-gray-300">
+          <i class="fa-solid fa-bell text-netflix-red text-xs"></i>
+          <span>Daily viral releases & new movie alerts</span>
+        </div>
+        <div class="flex items-center gap-2.5 text-gray-300">
+          <i class="fa-solid fa-shield-check text-emerald-400 text-xs"></i>
+          <span>100% Free VIP direct stream bypass</span>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="space-y-3 pt-1">
+        <!-- 1. Join Channel Button -->
+        <a 
+          id="btnJoinChannel" 
+          href="https://t.me/virallinkhub_official" 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          class="w-full py-3.5 px-4 bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-400 hover:to-sky-500 text-white font-black text-sm rounded-xl flex items-center justify-center gap-2 shadow-glow-blue active:scale-98 transition-all"
+        >
+          <i class="fa-brands fa-telegram text-base"></i>
+          <span>Join Channel</span>
+          <i class="fa-solid fa-arrow-up-right-from-square text-xs opacity-75"></i>
+        </a>
+
+        <!-- 2. I Have Joined Verification Button -->
+        <button 
+          id="btnVerifyJoined" 
+          class="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 shadow-glow-green active:scale-98 transition-all"
+        >
+          <i id="verifyIcon" class="fa-solid fa-circle-check text-xs"></i>
+          <span id="verifyText">I Have Joined</span>
+        </button>
+      </div>
+
+      <!-- Non-dismissible guarantee footer -->
+      <p class="text-[10px] text-gray-500 font-medium">
+        ⚡ Access unlocks permanently on this device once confirmed.
+      </p>
+
+    </div>
+  </div>
+
+  <!-- ================= TOP ANNOUNCEMENT BANNER ================= -->
+  <div id="announcementBar" class="bg-gradient-to-r from-netflix-red via-red-700 to-netflix-black text-white text-[11px] font-semibold py-1.5 px-4 text-center sticky top-0 z-50 shadow-md flex items-center justify-center gap-2">
+    <i class="fa-solid fa-bolt text-amber-300 text-xs"></i>
+    <span id="announcementText">🚀 Server 1 HD Streams active! Complete sponsor verification to unlock high-speed master video.</span>
+  </div>
+
+  <!-- ================= NETFLIX HEADER NAVBAR ================= -->
+  <header class="glass-card sticky top-[29px] z-40 px-4 sm:px-8 py-3.5 flex items-center justify-between border-b border-netflix-border transition-all duration-300">
+    <!-- Brand Logo & Live Indicator -->
+    <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2">
+        <span class="bg-netflix-red text-white text-xs font-black px-2 py-0.5 rounded tracking-tighter shadow-md">
+          VLH
+        </span>
+        <span class="text-base sm:text-lg font-black tracking-wider text-white uppercase flex items-center gap-1">
+          VIRAL<span class="text-netflix-red">LINK</span>HUB
+        </span>
+      </div>
+
+      <!-- Live Streaming Active Indicator -->
+      <div class="hidden sm:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[11px] text-emerald-400 font-semibold">
+        <span class="relative flex h-2 w-2">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+        </span>
+        <span>Live Streaming</span>
+        <span class="text-gray-500">·</span>
+        <span id="liveActiveCounter" class="font-mono tabular-nums text-white">1,420</span>
+        <span class="text-gray-400">online</span>
+      </div>
+    </div>
+
+    <!-- Right Actions: User info & Search -->
+    <div class="flex items-center gap-2.5">
+      <!-- Search Input Trigger -->
+      <div class="relative hidden md:block">
+        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs"></i>
+        <input 
+          type="text" 
+          id="navbarSearchInput" 
+          placeholder="Search movies, anime, clips..." 
+          class="bg-black/60 border border-white/10 rounded-full pl-8 pr-4 py-1 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-netflix-red w-48 focus:w-64 transition-all"
+        />
+      </div>
+
+      <!-- Channel Link Pill -->
+      <a 
+        id="navbarChannelLink"
+        href="https://t.me/virallinkhub_official" 
+        target="_blank" 
+        class="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-xs text-sky-400 font-medium hover:bg-sky-500/20 transition-colors"
+      >
+        <i class="fa-brands fa-telegram text-xs"></i>
+        <span>Channel</span>
+      </a>
+
+      <!-- Telegram Profile Pill -->
+      <div id="tgUserPill" class="flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-gray-300">
+        <div class="w-5 h-5 rounded-full bg-netflix-red/30 text-netflix-red flex items-center justify-center font-bold text-[10px]">
+          <i class="fa-brands fa-telegram"></i>
+        </div>
+        <span id="tgUsernameDisplay" class="font-medium truncate max-w-[100px]">@tg_visitor</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= HERO FEATURED BANNER WITH ANIMATED GIF ================= -->
+  <section id="heroSection" class="relative w-full h-[380px] sm:h-[480px] overflow-hidden bg-black flex items-end">
+    <!-- Animated GIF Background (Loops immediately so visitors immediately perceive active streaming) -->
+    <img 
+      id="heroGifBackground" 
+      src="https://media.giphy.com/media/26tn33aiTi1jkl6H6/giphy.gif" 
+      alt="Live Video Stream Preview" 
+      class="absolute inset-0 w-full h-full object-cover opacity-75 filter brightness-95 transition-opacity duration-700"
+    />
+    
+    <!-- Hero Vignette & Gradient Overlays -->
+    <div class="absolute inset-0 bg-gradient-to-t from-[#141414] via-[#141414]/50 to-transparent"></div>
+    <div class="absolute inset-0 bg-gradient-to-r from-[#141414] via-[#141414]/60 to-transparent"></div>
+
+    <!-- Hero Content Details -->
+    <div class="relative z-10 p-5 sm:p-10 max-w-2xl space-y-3.5">
+      
+      <!-- Live Stream Tag & Badges -->
+      <div class="flex flex-wrap items-center gap-2 text-[11px] font-bold">
+        <span class="bg-netflix-red text-white px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1 shadow-sm">
+          <i class="fa-solid fa-circle-play text-[10px]"></i> FEATURED STREAM
+        </span>
+        <span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded">
+          <i class="fa-solid fa-bolt text-[10px] mr-1"></i>Server 1 HD
+        </span>
+        <span class="bg-white/10 text-gray-200 px-2 py-0.5 rounded">4K Ultra HD</span>
+        <span class="bg-white/10 text-gray-200 px-2 py-0.5 rounded">Dolby 5.1</span>
+        <span class="text-amber-400 flex items-center gap-1">
+          <i class="fa-solid fa-star text-[10px]"></i> 9.8/10
+        </span>
+      </div>
+
+      <!-- Title -->
+      <h1 id="heroTitle" class="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-none drop-shadow-md">
+        Neon Protocol: Cyber Shadow
+      </h1>
+
+      <!-- Description -->
+      <p id="heroDescription" class="text-xs sm:text-sm text-gray-300 line-clamp-2 leading-relaxed drop-shadow">
+        A rogue neural net hacker discovers an encrypted corporate conspiracy deep inside the neo-Tokyo megagrid. Experience unreleased high-bitrate master streaming with multi-audio.
+      </p>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center gap-3 pt-1">
+        <button 
+          id="heroPlayBtn" 
+          class="px-5 sm:px-6 py-2.5 rounded-xl bg-netflix-red hover:bg-netflix-redHover text-white text-xs sm:text-sm font-black flex items-center gap-2 shadow-glow-red active:scale-95 transition-all"
+        >
+          <i class="fa-solid fa-play text-xs"></i>
+          <span>Play HD Video</span>
+        </button>
+
+        <button 
+          id="heroDetailsBtn" 
+          class="px-4 sm:px-5 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs sm:text-sm font-bold flex items-center gap-2 backdrop-blur-md transition-colors"
+        >
+          <i class="fa-solid fa-circle-info text-xs"></i>
+          <span>More Details</span>
+        </button>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================= MAIN CONTENT CAROUSELS ================= -->
+  <main class="space-y-8 px-4 sm:px-8 -mt-6 relative z-20 max-w-7xl mx-auto">
+
+    <!-- Category 1: Trending Now -->
+    <section class="space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="text-base sm:text-lg font-black text-white tracking-tight flex items-center gap-2">
+          <i class="fa-solid fa-fire text-netflix-red"></i>
+          <span>Trending Now</span>
+        </h2>
+        <span class="text-[11px] text-gray-400 font-medium">Updated every 15m</span>
+      </div>
+
+      <!-- Carousel Row -->
+      <div id="carouselTrending" class="flex gap-3.5 overflow-x-auto no-scrollbar py-2 scroll-smooth">
+        <!-- Injected via JavaScript -->
+      </div>
+    </section>
+
+    <!-- Category 2: Viral Movies (Full Length HD) -->
+    <section class="space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="text-base sm:text-lg font-black text-white tracking-tight flex items-center gap-2">
+          <i class="fa-solid fa-film text-amber-400"></i>
+          <span>Viral Movies · Server 1 HD</span>
+        </h2>
+        <span class="text-[11px] text-gray-400 font-medium">1080p & 4K Masters</span>
+      </div>
+
+      <div id="carouselMovies" class="flex gap-3.5 overflow-x-auto no-scrollbar py-2 scroll-smooth">
+        <!-- Injected via JavaScript -->
+      </div>
+    </section>
+
+    <!-- Category 3: Action & Thrillers -->
+    <section class="space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="text-base sm:text-lg font-black text-white tracking-tight flex items-center gap-2">
+          <i class="fa-solid fa-gun text-sky-400"></i>
+          <span>Action & High Octane Thrillers</span>
+        </h2>
+        <span class="text-[11px] text-gray-400 font-medium">Instant Streaming</span>
+      </div>
+
+      <div id="carouselAction" class="flex gap-3.5 overflow-x-auto no-scrollbar py-2 scroll-smooth">
+        <!-- Injected via JavaScript -->
+      </div>
+    </section>
+
+    <!-- Category 4: Anime Series & Batches -->
+    <section class="space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="text-base sm:text-lg font-black text-white tracking-tight flex items-center gap-2">
+          <i class="fa-solid fa-dragon text-purple-400"></i>
+          <span>Anime Series & Multi-Audio Batches</span>
+        </h2>
+        <span class="text-[11px] text-gray-400 font-medium">Full Season Batches</span>
+      </div>
+
+      <div id="carouselAnime" class="flex gap-3.5 overflow-x-auto no-scrollbar py-2 scroll-smooth">
+        <!-- Injected via JavaScript -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ================= UNLOCK & STREAM MODAL ================= -->
+  <div id="unlockModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md">
+    <div class="relative w-full max-w-lg glass-card rounded-2xl border border-white/10 overflow-hidden shadow-2xl animate-in fade-in duration-200">
+      
+      <!-- Modal Header -->
+      <div class="h-12 px-5 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-bold text-netflix-red uppercase tracking-wider flex items-center gap-1.5">
+            <i class="fa-solid fa-shield-halved"></i> Fast Stream Gateway
+          </span>
+          <span class="text-gray-600">·</span>
+          <span id="modalCategoryBadge" class="text-xs text-gray-400">VIP Stream</span>
+        </div>
+        <button id="modalCloseBtn" class="text-gray-400 hover:text-white p-1 rounded-lg">
+          <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+      </div>
+
+      <!-- Modal GIF & Poster Banner -->
+      <div class="relative h-48 w-full bg-zinc-950 overflow-hidden">
+        <img id="modalPreviewImage" src="" alt="Stream Preview" class="w-full h-full object-cover" />
+        <div class="absolute inset-0 bg-gradient-to-t from-[#141414] via-[#141414]/50 to-transparent"></div>
+        
+        <div class="absolute bottom-3 left-4 right-4 space-y-1">
+          <div class="flex items-center gap-2 text-[11px] font-semibold text-gray-300">
+            <span id="modalQualityText" class="text-emerald-400 font-bold">1080p HD</span>
+            <span class="text-gray-600">·</span>
+            <span id="modalFileSizeText" class="text-gray-300">1.4 GB</span>
+            <span class="text-gray-600">·</span>
+            <span class="text-amber-400 flex items-center gap-1">
+              <i class="fa-solid fa-bolt text-[10px]"></i> Server 1 HD
+            </span>
+          </div>
+          <h3 id="modalTitle" class="text-lg sm:text-xl font-black text-white line-clamp-1 drop-shadow">Movie Title</h3>
+        </div>
+      </div>
+
+      <!-- Modal Body & Dynamic Ad State -->
+      <div class="p-5 space-y-4">
+        
+        <p id="modalDescription" class="text-xs text-gray-400 leading-relaxed line-clamp-2">
+          Unlock high-speed direct stream access by completing verified sponsor tasks.
+        </p>
+
+        <!-- Ad Unlock Status & Dynamic Counter -->
+        <div class="bg-black/50 border border-white/10 rounded-xl p-3.5 space-y-2.5">
+          <div class="flex items-center justify-between text-xs">
+            <span class="font-medium text-gray-300 flex items-center gap-1.5">
+              <i class="fa-solid fa-lock text-amber-400 text-xs"></i>
+              <span>Stream Security Verification</span>
+            </span>
+            <!-- Dynamic Counter: Ads Verified: [ X / Required ] -->
+            <span id="modalCounterText" class="font-bold text-white font-mono bg-white/10 px-2 py-0.5 rounded text-[11px]">
+              Ads Verified: [ 0 / 2 ]
+            </span>
+          </div>
+
+          <!-- Step Progress Visual Bar -->
+          <div class="w-full bg-zinc-800 rounded-full h-2 overflow-hidden">
+            <div id="modalProgressBar" class="bg-netflix-red h-full transition-all duration-300" style="width: 0%;"></div>
+          </div>
+        </div>
+
+        <!-- Gentle Ad-Blocker Notice (Shown if ad-blocker detected) -->
+        <div id="adBlockerAlert" class="hidden bg-gradient-to-br from-amber-500/15 via-zinc-900/90 to-amber-950/20 border border-amber-500/40 rounded-xl p-3.5 space-y-2.5">
+          <div class="flex items-start gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/30 text-amber-400 flex items-center justify-center shrink-0">
+              <i class="fa-solid fa-shield-halved text-sm"></i>
+            </div>
+            <div class="space-y-1">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-amber-300 uppercase tracking-wide">Ad-Blocker Detected</span>
+                <span class="text-[10px] text-amber-400 font-mono bg-amber-400/10 px-1.5 py-0.5 rounded border border-amber-400/20">Action Recommended</span>
+              </div>
+              <p class="text-xs text-gray-300 leading-relaxed">
+                Our high-speed HD streaming servers are kept <span class="font-semibold text-white">100% free</span> through sponsor verification. Please pause or whitelist your ad-blocker to unlock this video.
+              </p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 pt-0.5">
+            <button id="btnRecheckAdBlocker" type="button" class="flex-1 py-1.5 px-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold flex items-center justify-center gap-1.5 transition-colors">
+              <i id="recheckIcon" class="fa-solid fa-rotate text-xs"></i>
+              <span>I've Disabled It (Re-Check)</span>
+            </button>
+            <button id="btnDismissAdBlocker" type="button" class="py-1.5 px-3 rounded-lg bg-white/10 hover:bg-white/20 text-gray-300 text-xs font-medium transition-colors">
+              Dismiss
+            </button>
+          </div>
+        </div>
+
+        <!-- 5-Second Verification Countdown Notice -->
+        <div id="countdownContainer" class="hidden bg-amber-500/10 border border-amber-500/30 rounded-xl p-3.5 text-center space-y-2">
+          <div class="flex items-center justify-center gap-2 text-amber-300 text-xs font-semibold">
+            <i class="fa-solid fa-circle-notch fa-spin text-amber-400"></i>
+            <span>Verifying sponsor ad click...</span>
+          </div>
+          <p class="text-xs text-gray-300">
+            Please wait <span id="countdownTimer" class="font-bold font-mono text-white text-sm">5</span> seconds to register verification.
+          </p>
+          <div class="w-full bg-zinc-800 rounded-full h-1.5 overflow-hidden">
+            <div id="countdownBar" class="bg-amber-400 h-full transition-all duration-1000 ease-linear" style="width: 0%;"></div>
+          </div>
+        </div>
+
+        <!-- Step 1: Watch Ad Action Button -->
+        <div id="actionWatchAdWrapper">
+          <button id="btnWatchAd" class="w-full py-3 px-4 bg-netflix-red hover:bg-netflix-redHover text-white font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 shadow-glow-red active:scale-98 transition-all">
+            <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
+            <span id="btnWatchAdText">Watch Ad to Unlock Stream (1/2)</span>
+          </button>
+        </div>
+
+        <!-- Step 2: Unlocked Glowing Action Button -->
+        <div id="actionUnlockedWrapper" class="hidden space-y-3">
+          <a 
+            id="btnPlayStream" 
+            href="#" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            class="relative group w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm rounded-xl flex items-center justify-center gap-2 shadow-glow-green animate-subtle-pulse transition-all active:scale-98"
+          >
+            <i class="fa-solid fa-play"></i>
+            <span>▶ Play HD Stream</span>
+            <i class="fa-solid fa-arrow-up-right-from-square text-xs opacity-75"></i>
+          </a>
+
+          <!-- Masked Stream URL copy row -->
+          <div class="flex items-center justify-between bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs">
+            <span id="modalStreamUrlText" class="text-gray-400 font-mono text-[11px] truncate max-w-[260px]">
+              https://fastcdn.stream/v/sample
+            </span>
+            <button id="modalCopyStreamBtn" class="flex items-center gap-1 text-[11px] font-semibold text-white bg-white/10 hover:bg-white/20 px-2.5 py-1 rounded transition-colors">
+              <i class="fa-regular fa-copy text-xs"></i>
+              <span id="copyBtnLabel">Copy</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Verification Trust Badge -->
+        <div class="flex items-center justify-between text-[10px] text-gray-500 pt-1">
+          <span class="flex items-center gap-1">
+            <i class="fa-brands fa-telegram text-gray-400"></i>
+            <span>Telegram WebApp Verified Stream</span>
+          </span>
+          <span class="text-emerald-400 font-medium flex items-center gap-1">
+            <i class="fa-solid fa-circle-check"></i> Server 1 HD Master
+          </span>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= JAVASCRIPT APP LOGIC ================= -->
+  <script>
+    // --- 1. Telegram WebApp SDK Initialization ---
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      tg.ready();
+      tg.expand();
+      if (tg.setHeaderColor) tg.setHeaderColor('#141414');
+      if (tg.setBackgroundColor) tg.setBackgroundColor('#141414');
+    }
+
+    // Extract Telegram User metadata
+    const telegramUser = {
+      id: tg?.initDataUnsafe?.user?.id || Math.floor(10000000 + Math.random() * 90000000),
+      username: tg?.initDataUnsafe?.user?.username || '',
+      first_name: tg?.initDataUnsafe?.user?.first_name || 'Guest User',
+      is_premium: tg?.initDataUnsafe?.user?.is_premium || false
+    };
+
+    document.getElementById('tgUsernameDisplay').textContent = telegramUser.username 
+      ? `@${telegramUser.username}` 
+      : telegramUser.first_name;
+
+    // --- 2. Mandatory Telegram Join Verification Modal Flow ---
+    const mandatoryJoinModal = document.getElementById('mandatoryJoinModal');
+    const btnJoinChannel = document.getElementById('btnJoinChannel');
+    const btnVerifyJoined = document.getElementById('btnVerifyJoined');
+    const verifyIcon = document.getElementById('verifyIcon');
+    const verifyText = document.getElementById('verifyText');
+    const navbarChannelLink = document.getElementById('navbarChannelLink');
+
+    function checkChannelJoinStatus(channelUrl, forceJoin) {
+      const hasJoined = localStorage.getItem('vlh_channel_joined') === 'true';
+      if (channelUrl) {
+        btnJoinChannel.href = channelUrl;
+        if (navbarChannelLink) navbarChannelLink.href = channelUrl;
+      }
+
+      // If user hasn't confirmed join yet, show non-dismissible modal
+      if (!hasJoined) {
+        mandatoryJoinModal.classList.remove('hidden');
+      } else {
+        mandatoryJoinModal.classList.add('hidden');
+      }
+    }
+
+    btnVerifyJoined.addEventListener('click', () => {
+      verifyIcon.className = 'fa-solid fa-circle-notch fa-spin text-xs';
+      verifyText.textContent = 'Verifying Membership...';
+      btnVerifyJoined.disabled = true;
+
+      if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+
+      setTimeout(() => {
+        localStorage.setItem('vlh_channel_joined', 'true');
+        verifyIcon.className = 'fa-solid fa-circle-check text-xs';
+        verifyText.textContent = 'Access Granted!';
+        
+        if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+
+        setTimeout(() => {
+          mandatoryJoinModal.classList.add('hidden');
+          btnVerifyJoined.disabled = false;
+        }, 400);
+      }, 900);
+    });
+
+    // --- 3. Real-Time Analytics Ping (Every 30 Seconds) ---
+    async function sendAnalyticsPing() {
+      try {
+        const res = await fetch('/api/v1/analytics/ping', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: String(telegramUser.id),
+            username: telegramUser.username,
+            firstName: telegramUser.first_name,
+            isPremium: telegramUser.is_premium
+          })
+        });
+        const data = await res.json();
+        if (data.success && data.liveActiveUsers) {
+          const formatted = (data.liveActiveUsers >= 100) 
+            ? data.liveActiveUsers.toLocaleString() 
+            : (1420 + data.liveActiveUsers).toLocaleString();
+          document.getElementById('liveActiveCounter').textContent = formatted;
+        }
+      } catch (err) {
+        // non-fatal
+      }
+    }
+
+    // Initial ping & recurring 30s timer
+    sendAnalyticsPing();
+    setInterval(sendAnalyticsPing, 30000);
+
+    // --- 4. App Configuration Fetch ---
+    let globalAdLink = 'https://monetag.com/direct?zone=78912&ref=virallinkhub';
+    let defaultAdsRequired = 2;
+    let telegramChannelUrl = 'https://t.me/virallinkhub_official';
+    let forceJoinChannel = true;
+
+    async function loadAppConfig() {
+      try {
+        const res = await fetch('/api/v1/app-config');
+        const data = await res.json();
+        if (data.success && data.data) {
+          const cfg = data.data;
+          globalAdLink = cfg.globalAdLink || globalAdLink;
+          defaultAdsRequired = cfg.defaultAdsRequired ?? 2;
+          telegramChannelUrl = cfg.telegramChannelUrl || telegramChannelUrl;
+          forceJoinChannel = cfg.forceJoinChannel !== undefined ? Boolean(cfg.forceJoinChannel) : true;
+          
+          if (cfg.announcementBannerText) {
+            document.getElementById('announcementText').textContent = cfg.announcementBannerText;
+          }
+
+          checkChannelJoinStatus(telegramChannelUrl, forceJoinChannel);
+        } else {
+          checkChannelJoinStatus(telegramChannelUrl, true);
+        }
+      } catch (err) {
+        console.error('Failed to load app-config:', err);
+        checkChannelJoinStatus(telegramChannelUrl, true);
+      }
+    }
+    loadAppConfig();
+
+    // --- 5. Video Catalog State & Rendering ---
+    let videoCatalog = [];
+    let currentMovie = null;
+    let watchedAdsCount = 0;
+    let isCountingDown = false;
+    let countdownInterval = null;
+
+    // Animated GIF previews catalog with high frame-rate streaming backgrounds
+    const animatedGifs = [
+      'https://media.giphy.com/media/26tn33aiTi1jkl6H6/giphy.gif',
+      'https://media.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy.gif',
+      'https://media.giphy.com/media/3o7btQ8jDTPGDpgc6I/giphy.gif',
+      'https://media.giphy.com/media/13HgwGsXF0aiGY/giphy.gif',
+      'https://media.giphy.com/media/l41lI4bYmcsPJX9Go/giphy.gif'
+    ];
+
+    async function fetchMovies() {
+      try {
+        const res = await fetch('/api/v1/movies');
+        const data = await res.json();
+        if (data.success && data.data) {
+          videoCatalog = data.data;
+          renderCatalog();
+          setupHero(videoCatalog[0]);
+        }
+      } catch (err) {
+        console.error('Failed to fetch movies:', err);
+      }
+    }
+
+    function setupHero(movie) {
+      if (!movie) return;
+      document.getElementById('heroTitle').textContent = movie.title;
+      document.getElementById('heroDescription').textContent = movie.description;
+      const gifBg = movie.bannerGifUrl || animatedGifs[0];
+      document.getElementById('heroGifBackground').src = gifBg;
+
+      document.getElementById('heroPlayBtn').onclick = () => openUnlockModal(movie);
+      document.getElementById('heroDetailsBtn').onclick = () => openUnlockModal(movie);
+    }
+
+    function createCardElement(movie, index) {
+      const card = document.createElement('div');
+      card.className = 'netflix-card flex-none w-[140px] sm:w-[170px] cursor-pointer group relative';
+      
+      const gifPreview = movie.bannerGifUrl || animatedGifs[index % animatedGifs.length];
+
+      card.innerHTML = `
+        <div class="relative w-full h-[200px] sm:h-[240px] rounded-xl overflow-hidden bg-zinc-900 border border-white/10 shadow-lg">
+          <!-- Poster Image -->
+          <img 
+            src="${movie.posterUrl}" 
+            alt="${movie.title}" 
+            class="w-full h-full object-cover transition-opacity duration-300 group-hover:opacity-0" 
+            loading="lazy"
+          />
+          <!-- Animated GIF Preview on Hover / Touch -->
+          <img 
+            src="${gifPreview}" 
+            alt="${movie.title} Animated Preview" 
+            class="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-300" 
+            loading="lazy"
+          />
+
+          <!-- Quality Badge -->
+          <span class="absolute top-2 left-2 bg-black/75 backdrop-blur-md text-[10px] font-bold text-emerald-400 px-1.5 py-0.5 rounded border border-white/10">
+            ${movie.quality || '1080p HD'}
+          </span>
+
+          <!-- Views Counter Badge -->
+          <span class="absolute bottom-2 right-2 bg-black/80 backdrop-blur-md text-[10px] font-mono text-gray-300 px-1.5 py-0.5 rounded flex items-center gap-1">
+            <i class="fa-solid fa-eye text-[9px] text-amber-400"></i>
+            <span>${(movie.viewsCount || 14000).toLocaleString()}</span>
+          </span>
+
+          <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        </div>
+
+        <div class="mt-2 space-y-0.5">
+          <h4 class="text-xs font-bold text-white line-clamp-1 group-hover:text-netflix-red transition-colors">
+            ${movie.title}
+          </h4>
+          <div class="flex items-center gap-1.5 text-[10px] text-gray-400 font-medium">
+            <span>${movie.category}</span>
+            <span>·</span>
+            <span class="text-amber-400">${movie.requiredAdsCount || 2} Ads</span>
+          </div>
+        </div>
+      `;
+
+      card.addEventListener('click', () => {
+        if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+        openUnlockModal(movie);
+      });
+
+      return card;
+    }
+
+    function renderCatalog() {
+      const trendingContainer = document.getElementById('carouselTrending');
+      const moviesContainer = document.getElementById('carouselMovies');
+      const actionContainer = document.getElementById('carouselAction');
+      const animeContainer = document.getElementById('carouselAnime');
+
+      trendingContainer.innerHTML = '';
+      moviesContainer.innerHTML = '';
+      actionContainer.innerHTML = '';
+      animeContainer.innerHTML = '';
+
+      videoCatalog.forEach((movie, i) => {
+        // Trending
+        trendingContainer.appendChild(createCardElement(movie, i));
+
+        // Category matching
+        const cat = (movie.category || '').toLowerCase();
+        if (cat.includes('movie') || cat.includes('cloud') || cat.includes('viral')) {
+          moviesContainer.appendChild(createCardElement(movie, i));
+        }
+        if (cat.includes('action') || cat.includes('thrill')) {
+          actionContainer.appendChild(createCardElement(movie, i));
+        }
+        if (cat.includes('anime') || cat.includes('fantasy')) {
+          animeContainer.appendChild(createCardElement(movie, i));
+        }
+      });
+    }
+
+    // --- 6. Ad-Blocker Detection Engine ---
+    let isAdBlockerActive = false;
+    let isAdBlockerDismissed = false;
+
+    async function detectAdBlocker() {
+      const bait = document.createElement('div');
+      bait.className = 'pub_300x250 pub_728x90 text-ad text_ad ad-banner banner-ad adsbox';
+      bait.id = 'ad-banner-detector';
+      bait.setAttribute('aria-hidden', 'true');
+      bait.style.position = 'absolute';
+      bait.style.left = '-9999px';
+      bait.style.top = '-9999px';
+      bait.style.width = '1px';
+      bait.style.height = '1px';
+      document.body.appendChild(bait);
+
+      let isBlocked = false;
+      await new Promise(resolve => setTimeout(resolve, 80));
+
+      try {
+        const style = window.getComputedStyle(bait);
+        if (
+          bait.offsetParent === null ||
+          bait.offsetHeight === 0 ||
+          bait.clientHeight === 0 ||
+          style.display === 'none' ||
+          style.visibility === 'hidden'
+        ) {
+          isBlocked = true;
+        }
+      } catch (e) {
+        // ignore
+      } finally {
+        bait.remove();
+      }
+
+      if (isBlocked) return true;
+
+      try {
+        await fetch('https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js', {
+          method: 'HEAD',
+          mode: 'no-cors',
+          cache: 'no-store'
+        });
+        return false;
+      } catch {
+        return true;
+      }
+    }
+
+    document.getElementById('btnDismissAdBlocker').addEventListener('click', () => {
+      isAdBlockerDismissed = true;
+      document.getElementById('adBlockerAlert').classList.add('hidden');
+    });
+
+    document.getElementById('btnRecheckAdBlocker').addEventListener('click', async () => {
+      const icon = document.getElementById('recheckIcon');
+      icon.classList.add('fa-spin');
+      const stillBlocked = await detectAdBlocker();
+      icon.classList.remove('fa-spin');
+
+      if (!stillBlocked) {
+        isAdBlockerDismissed = true;
+        document.getElementById('adBlockerAlert').classList.add('hidden');
+        if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+      } else {
+        document.getElementById('adBlockerAlert').classList.remove('hidden');
+        if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('warning');
+      }
+    });
+
+    // --- 7. Unlock Modal Flow ---
+    const unlockModal = document.getElementById('unlockModal');
+    const modalCloseBtn = document.getElementById('modalCloseBtn');
+    const modalPreviewImage = document.getElementById('modalPreviewImage');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalDescription = document.getElementById('modalDescription');
+    const modalCategoryBadge = document.getElementById('modalCategoryBadge');
+    const modalQualityText = document.getElementById('modalQualityText');
+    const modalFileSizeText = document.getElementById('modalFileSizeText');
+    const modalCounterText = document.getElementById('modalCounterText');
+    const modalProgressBar = document.getElementById('modalProgressBar');
+    const countdownContainer = document.getElementById('countdownContainer');
+    const countdownTimer = document.getElementById('countdownTimer');
+    const countdownBar = document.getElementById('countdownBar');
+    const actionWatchAdWrapper = document.getElementById('actionWatchAdWrapper');
+    const btnWatchAd = document.getElementById('btnWatchAd');
+    const btnWatchAdText = document.getElementById('btnWatchAdText');
+    const actionUnlockedWrapper = document.getElementById('actionUnlockedWrapper');
+    const btnPlayStream = document.getElementById('btnPlayStream');
+    const modalStreamUrlText = document.getElementById('modalStreamUrlText');
+    const modalCopyStreamBtn = document.getElementById('modalCopyStreamBtn');
+    const copyBtnLabel = document.getElementById('copyBtnLabel');
+
+    function openUnlockModal(movie) {
+      currentMovie = movie;
+      watchedAdsCount = 0;
+      isCountingDown = false;
+      clearInterval(countdownInterval);
+
+      modalTitle.textContent = movie.title;
+      modalDescription.textContent = movie.description;
+      modalCategoryBadge.textContent = movie.category;
+      modalQualityText.textContent = movie.quality || '1080p HD';
+      modalFileSizeText.textContent = movie.fileSize || '1.4 GB';
+      modalPreviewImage.src = movie.bannerGifUrl || movie.posterUrl;
+
+      const streamLink = movie.streamUrl || movie.serverUrl || movie.hdSourceUrl || movie.targetLink || 'https://fastcdn.stream/v/sample';
+      modalStreamUrlText.textContent = streamLink;
+      btnPlayStream.href = streamLink;
+
+      updateModalProgress();
+
+      // Check ad-blocker
+      if (!isAdBlockerDismissed) {
+        detectAdBlocker().then(blocked => {
+          if (blocked && !isAdBlockerDismissed) {
+            document.getElementById('adBlockerAlert').classList.remove('hidden');
+          } else {
+            document.getElementById('adBlockerAlert').classList.add('hidden');
+          }
+        });
+      }
+
+      countdownContainer.classList.add('hidden');
+      actionWatchAdWrapper.classList.remove('hidden');
+      actionUnlockedWrapper.classList.add('hidden');
+      unlockModal.classList.remove('hidden');
+    }
+
+    function closeUnlockModal() {
+      unlockModal.classList.add('hidden');
+      clearInterval(countdownInterval);
+      isCountingDown = false;
+    }
+
+    modalCloseBtn.addEventListener('click', closeUnlockModal);
+    unlockModal.addEventListener('click', (e) => {
+      if (e.target === unlockModal) closeUnlockModal();
+    });
+
+    function updateModalProgress() {
+      const required = currentMovie ? (currentMovie.requiredAdsCount ?? defaultAdsRequired) : 2;
+      modalCounterText.textContent = `Ads Verified: [ ${watchedAdsCount} / ${required} ]`;
+
+      const progressPercent = Math.min(100, (watchedAdsCount / required) * 100);
+      modalProgressBar.style.width = `${progressPercent}%`;
+
+      btnWatchAdText.textContent = `Watch Ad to Unlock Stream (${watchedAdsCount + 1}/${required})`;
+    }
+
+    // Step 1: Watch Ad Button Click
+    btnWatchAd.addEventListener('click', () => {
+      if (isCountingDown || !currentMovie) return;
+
+      const adUrl = currentMovie.directAdLink || globalAdLink;
+
+      // 1. Open dynamic Monetag / Adsterra direct smartlink in new tab
+      window.open(adUrl, '_blank', 'noopener,noreferrer');
+
+      // 2. Fire ad click analytics telemetry
+      fetch(`/api/v1/movies/${currentMovie._id}/click-ad`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-telegram-init-data': JSON.stringify(telegramUser)
+        }
+      }).catch(() => {});
+
+      // 3. Initiate 5-second countdown timer before registering verified click
+      isCountingDown = true;
+      let timeLeft = 5;
+      countdownTimer.textContent = timeLeft;
+      countdownBar.style.width = '0%';
+      countdownContainer.classList.remove('hidden');
+      btnWatchAd.classList.add('opacity-50', 'pointer-events-none');
+
+      if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+
+      countdownInterval = setInterval(() => {
+        timeLeft--;
+        countdownTimer.textContent = timeLeft;
+        countdownBar.style.width = `${((5 - timeLeft) / 5) * 100}%`;
+
+        if (timeLeft <= 0) {
+          clearInterval(countdownInterval);
+          isCountingDown = false;
+          watchedAdsCount++;
+          updateModalProgress();
+          countdownContainer.classList.add('hidden');
+          btnWatchAd.classList.remove('opacity-50', 'pointer-events-none');
+
+          const required = currentMovie.requiredAdsCount ?? defaultAdsRequired;
+
+          if (watchedAdsCount >= required) {
+            // UNLOCKED STATE
+            actionWatchAdWrapper.classList.add('hidden');
+            actionUnlockedWrapper.classList.remove('hidden');
+
+            if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+
+            // Fire view increment
+            fetch(`/api/v1/movies/${currentMovie._id}/view`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-telegram-init-data': JSON.stringify(telegramUser)
+              }
+            }).catch(() => {});
+          } else {
+            if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+          }
+        }
+      }, 1000);
+    });
+
+    // Copy stream link button
+    modalCopyStreamBtn.addEventListener('click', () => {
+      const link = modalStreamUrlText.textContent.trim();
+      navigator.clipboard.writeText(link);
+      copyBtnLabel.textContent = 'Copied!';
+      if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+      setTimeout(() => {
+        copyBtnLabel.textContent = 'Copy';
+      }, 2000);
+    });
+
+    // --- 8. Search filter listener ---
+    const searchInput = document.getElementById('navbarSearchInput');
+    searchInput.addEventListener('input', (e) => {
+      const query = e.target.value.toLowerCase().trim();
+      if (!query) {
+        renderCatalog();
+        return;
+      }
+      const filtered = videoCatalog.filter(v => 
+        v.title.toLowerCase().includes(query) || 
+        v.description.toLowerCase().includes(query) ||
+        v.category.toLowerCase().includes(query)
+      );
+      
+      const trendingContainer = document.getElementById('carouselTrending');
+      trendingContainer.innerHTML = '';
+      filtered.forEach((m, idx) => trendingContainer.appendChild(createCardElement(m, idx)));
+    });
+
+    // Start App
+    fetchMovies();
+  </script>
+</body>
+</html>
