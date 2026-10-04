@@ -10,6 +10,7 @@ import UnlockModal from '@/components/UnlockModal';
 import TelegramUserSelector from '@/components/TelegramUserSelector';
 import AdminDashboard from '@/components/AdminDashboard';
 import MaintenanceScreen from '@/components/MaintenanceScreen';
+import MobileBottomNav from '@/components/MobileBottomNav';
 import { IVideo, ISettings, ITelegramUser } from '@/lib/types';
 import { Search, Cloud, Send } from 'lucide-react';
 
@@ -61,6 +62,7 @@ export default function HomePage() {
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [maintenanceBypassed, setMaintenanceBypassed] = useState(false);
+  const [mobileActiveTab, setMobileActiveTab] = useState<string>('home');
 
   // Live Stats & Heartbeat
   const [liveUsersCount, setLiveUsersCount] = useState<number>(3);
@@ -401,7 +403,7 @@ export default function HomePage() {
       />
 
       {/* Footer */}
-      <footer className="border-t border-white/10 bg-[#07080c] py-6 text-xs text-zinc-500">
+      <footer className="border-t border-white/10 bg-[#07080c] py-6 pb-24 sm:pb-6 text-xs text-zinc-500">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6 lg:px-8">
           <div className="flex items-center gap-2">
             <span className="font-bold text-[#e50914]">{settings.appName}</span>
@@ -420,15 +422,19 @@ export default function HomePage() {
               <Send className="h-3.5 w-3.5 text-[#2AABEE]" />
               <span>Official Telegram Channel</span>
             </a>
-            <button
-              onClick={() => setIsAdminModalOpen(true)}
-              className="text-zinc-500 hover:text-zinc-300"
-            >
-              Admin Portal
-            </button>
           </div>
         </div>
       </footer>
+
+      {/* Persistent Bottom-Navigation Bar for Mobile View (< 640px) */}
+      <MobileBottomNav
+        activeTab={mobileActiveTab}
+        onSelectTab={setMobileActiveTab}
+        activeCategory={activeCategory}
+        onSelectCategory={setActiveCategory}
+        telegramUser={telegramUser}
+        onOpenUserModal={() => setIsUserModalOpen(true)}
+      />
     </div>
   );
 }

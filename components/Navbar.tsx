@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ShieldCheck, User as UserIcon, Lock, Sparkles, FileCode } from 'lucide-react';
+import { User as UserIcon, Sparkles, FileCode } from 'lucide-react';
 import { ITelegramUser } from '@/lib/types';
 
 interface NavbarProps {
@@ -108,27 +108,11 @@ export default function Navbar({
               <Sparkles className="h-3 w-3 text-amber-400" />
             )}
           </button>
-
-          {/* Full Admin Dashboard Link */}
-          <a
-            href="/admin.html"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-              isAdminLoggedIn
-                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30'
-                : 'bg-zinc-800 text-zinc-200 border border-white/10 hover:bg-zinc-700 hover:text-white'
-            }`}
-            title="Open Full HTML Admin Dashboard"
-          >
-            <ShieldCheck className="h-3.5 w-3.5 text-netflix-red text-[#e50914]" />
-            <span>Admin Panel</span>
-          </a>
         </div>
       </div>
 
-      {/* Mobile Category Bar */}
-      <div className="flex overflow-x-auto border-t border-white/5 px-4 py-2 scrollbar-none lg:hidden">
+      {/* Tablet Category Bar (Hidden on mobile <640px where MobileBottomNav takes over) */}
+      <div className="hidden sm:flex lg:hidden overflow-x-auto border-t border-white/5 px-4 py-2 scrollbar-none">
         <div className="flex items-center gap-2">
           {navItems.map((item) => {
             const isActive = activeCategory.toLowerCase() === item.category.toLowerCase();

@@ -507,7 +507,7 @@
   </div>
 
   <!-- ================= 2. FOOTER STICKY BANNER (Adsterra / Monetag 320x50 Banner) ================= -->
-  <aside id="footerStickyBanner" class="fixed bottom-0 left-0 right-0 z-40 bg-black/90 backdrop-blur-md border-t border-white/10 py-1.5 px-3 flex flex-col items-center justify-center shadow-2xl">
+  <aside id="footerStickyBanner" class="fixed bottom-16 sm:bottom-0 left-0 right-0 z-40 bg-black/90 backdrop-blur-md border-t border-white/10 py-1.5 px-3 flex flex-col items-center justify-center shadow-2xl">
     <div class="w-full max-w-[320px] sm:max-w-[468px] flex items-center justify-between text-[9px] text-gray-500 mb-0.5 px-1">
       <span class="uppercase tracking-wider font-semibold text-gray-400 flex items-center gap-1">
         <i class="fa-solid fa-bullhorn text-netflix-red text-[8px]"></i> Sponsored Link
@@ -523,6 +523,82 @@
       </a>
     </div>
   </aside>
+
+  <!-- ================= PERSISTENT BOTTOM NAVIGATION BAR FOR MOBILE (< 640px) ================= -->
+  <nav id="mobileBottomNav" class="fixed bottom-0 left-0 right-0 z-50 bg-[#141414]/95 backdrop-blur-xl border-t border-white/10 sm:hidden">
+    <div class="grid h-16 grid-cols-4 items-center px-1 text-center">
+      
+      <!-- 1. Home -->
+      <button id="navBtnHome" type="button" class="flex flex-col items-center justify-center gap-1 text-netflix-red transition-colors">
+        <i class="fa-solid fa-house text-base"></i>
+        <span class="text-[10px] font-medium tracking-tight">Home</span>
+      </button>
+
+      <!-- 2. Categories -->
+      <button id="navBtnCategories" type="button" class="flex flex-col items-center justify-center gap-1 text-gray-400 hover:text-white transition-colors">
+        <i class="fa-solid fa-layer-group text-base"></i>
+        <span class="text-[10px] font-medium tracking-tight">Categories</span>
+      </button>
+
+      <!-- 3. Premium -->
+      <button id="navBtnPremium" type="button" class="flex flex-col items-center justify-center gap-1 text-gray-400 hover:text-amber-400 transition-colors relative">
+        <div class="relative">
+          <i class="fa-solid fa-crown text-base text-amber-400"></i>
+          <span class="absolute -top-1 -right-2 rounded bg-amber-500/20 px-1 text-[7px] font-bold text-amber-300 border border-amber-500/30">VIP</span>
+        </div>
+        <span class="text-[10px] font-medium tracking-tight text-amber-300">Premium</span>
+      </button>
+
+      <!-- 4. Profile -->
+      <button id="navBtnProfile" type="button" class="flex flex-col items-center justify-center gap-1 text-gray-400 hover:text-white transition-colors">
+        <i class="fa-solid fa-circle-user text-base"></i>
+        <span id="navMobileProfileLabel" class="text-[10px] font-medium tracking-tight truncate max-w-[65px]">Profile</span>
+      </button>
+
+    </div>
+  </nav>
+
+  <!-- Mobile Category Drawer -->
+  <div id="mobileCategoryDrawer" class="hidden fixed inset-0 z-50 flex flex-col justify-end bg-black/80 backdrop-blur-sm sm:hidden">
+    <div class="w-full rounded-t-2xl border-t border-white/10 bg-[#1a1b24] p-5 shadow-2xl space-y-4 animate-in slide-in-from-bottom duration-200">
+      <div class="flex items-center justify-between border-b border-white/10 pb-3">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-layer-group text-netflix-red text-sm"></i>
+          <h3 class="text-sm font-bold text-white uppercase tracking-wider">Browse Collections</h3>
+        </div>
+        <button id="btnCloseCategoryDrawer" type="button" class="p-1 text-gray-400 hover:text-white">
+          <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2.5 text-xs">
+        <button type="button" onclick="selectMobileCategory('All')" class="flex items-center gap-2 p-3 rounded-xl bg-white/5 hover:bg-netflix-red/20 text-gray-200 font-semibold border border-white/5">
+          <i class="fa-solid fa-bolt text-amber-400"></i>
+          <span>All Streams</span>
+        </button>
+        <button type="button" onclick="selectMobileCategory('Trending')" class="flex items-center gap-2 p-3 rounded-xl bg-white/5 hover:bg-netflix-red/20 text-gray-200 font-semibold border border-white/5">
+          <i class="fa-solid fa-fire text-netflix-red"></i>
+          <span>Trending Now</span>
+        </button>
+        <button type="button" onclick="selectMobileCategory('Viral Movies')" class="flex items-center gap-2 p-3 rounded-xl bg-white/5 hover:bg-netflix-red/20 text-gray-200 font-semibold border border-white/5">
+          <i class="fa-solid fa-film text-amber-400"></i>
+          <span>Viral Movies</span>
+        </button>
+        <button type="button" onclick="selectMobileCategory('Action')" class="flex items-center gap-2 p-3 rounded-xl bg-white/5 hover:bg-netflix-red/20 text-gray-200 font-semibold border border-white/5">
+          <i class="fa-solid fa-gun text-sky-400"></i>
+          <span>Action Thrillers</span>
+        </button>
+        <button type="button" onclick="selectMobileCategory('Anime')" class="flex items-center gap-2 p-3 rounded-xl bg-white/5 hover:bg-netflix-red/20 text-gray-200 font-semibold border border-white/5">
+          <i class="fa-solid fa-dragon text-purple-400"></i>
+          <span>Anime Batches</span>
+        </button>
+        <button type="button" onclick="selectMobileCategory('Recommended')" class="flex items-center gap-2 p-3 rounded-xl bg-white/5 hover:bg-netflix-red/20 text-gray-200 font-semibold border border-white/5">
+          <i class="fa-solid fa-star text-amber-400"></i>
+          <span>VIP Masters</span>
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- ================= JAVASCRIPT APP LOGIC ================= -->
   <script>
@@ -543,9 +619,82 @@
       is_premium: tg?.initDataUnsafe?.user?.is_premium || false
     };
 
-    document.getElementById('tgUsernameDisplay').textContent = telegramUser.username 
-      ? `@${telegramUser.username}` 
-      : telegramUser.first_name;
+    const userLabel = telegramUser.username ? `@${telegramUser.username}` : telegramUser.first_name;
+    document.getElementById('tgUsernameDisplay').textContent = userLabel;
+    const navMobileProfileLabel = document.getElementById('navMobileProfileLabel');
+    if (navMobileProfileLabel) navMobileProfileLabel.textContent = userLabel;
+
+    // --- Mobile Bottom Navigation Logic ---
+    const navBtnHome = document.getElementById('navBtnHome');
+    const navBtnCategories = document.getElementById('navBtnCategories');
+    const navBtnPremium = document.getElementById('navBtnPremium');
+    const navBtnProfile = document.getElementById('navBtnProfile');
+    const mobileCategoryDrawer = document.getElementById('mobileCategoryDrawer');
+    const btnCloseCategoryDrawer = document.getElementById('btnCloseCategoryDrawer');
+
+    navBtnHome?.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      renderCatalog();
+      updateNavHighlight('home');
+      if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+    });
+
+    navBtnCategories?.addEventListener('click', () => {
+      mobileCategoryDrawer.classList.toggle('hidden');
+      updateNavHighlight('categories');
+      if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+    });
+
+    btnCloseCategoryDrawer?.addEventListener('click', () => {
+      mobileCategoryDrawer.classList.add('hidden');
+    });
+
+    mobileCategoryDrawer?.addEventListener('click', (e) => {
+      if (e.target === mobileCategoryDrawer) {
+        mobileCategoryDrawer.classList.add('hidden');
+      }
+    });
+
+    window.selectMobileCategory = function(cat) {
+      mobileCategoryDrawer.classList.add('hidden');
+      if (cat === 'All') {
+        renderCatalog();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        const filtered = videoCatalog.filter(m => (m.category || '').toLowerCase().includes(cat.toLowerCase()));
+        const trendingContainer = document.getElementById('carouselTrending');
+        trendingContainer.innerHTML = '';
+        filtered.forEach((m, idx) => trendingContainer.appendChild(createCardElement(m, idx)));
+        trendingContainer.scrollIntoView({ behavior: 'smooth' });
+      }
+      if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+    };
+
+    navBtnPremium?.addEventListener('click', () => {
+      const carouselMovies = document.getElementById('carouselMovies');
+      if (carouselMovies) carouselMovies.scrollIntoView({ behavior: 'smooth' });
+      updateNavHighlight('premium');
+      if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+    });
+
+    navBtnProfile?.addEventListener('click', () => {
+      checkChannelJoinStatus(telegramChannelUrl, true);
+      mandatoryJoinModal.classList.remove('hidden');
+      updateNavHighlight('profile');
+      if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+    });
+
+    function updateNavHighlight(tab) {
+      [navBtnHome, navBtnCategories, navBtnPremium, navBtnProfile].forEach(btn => {
+        if (!btn) return;
+        btn.classList.remove('text-netflix-red', 'text-amber-400', 'text-white');
+        btn.classList.add('text-gray-400');
+      });
+      if (tab === 'home') navBtnHome.classList.replace('text-gray-400', 'text-netflix-red');
+      if (tab === 'categories') navBtnCategories.classList.replace('text-gray-400', 'text-netflix-red');
+      if (tab === 'premium') navBtnPremium.classList.replace('text-gray-400', 'text-amber-400');
+      if (tab === 'profile') navBtnProfile.classList.replace('text-gray-400', 'text-white');
+    }
 
     // --- 2. Initial Click Popunder Integration ---
     let globalAdLink = 'https://monetag.com/direct?zone=78912&ref=virallinkhub';
@@ -670,7 +819,7 @@
         const data = await res.json();
         if (data.success && data.data) {
           const cfg = data.data;
-          globalAdLink = cfg.globalAdLink || globalAdLink;
+          globalAdLink = cfg.primaryDirectLink || cfg.globalAdLink || globalAdLink;
           defaultAdsRequired = cfg.defaultAdsRequired ?? 2;
           telegramChannelUrl = cfg.telegramChannelUrl || telegramChannelUrl;
           forceJoinChannel = cfg.forceJoinChannel !== undefined ? Boolean(cfg.forceJoinChannel) : true;
@@ -680,7 +829,19 @@
           }
 
           document.getElementById('headerAdBannerLink').href = globalAdLink;
-          document.getElementById('footerAdBannerLink').href = globalAdLink;
+          document.getElementById('footerAdBannerLink').href = cfg.secondaryDirectLink || globalAdLink;
+
+          // Inject custom banner script if provided
+          if (cfg.bannerScriptCode && cfg.bannerScriptCode.trim()) {
+            const container = document.getElementById('adsterraHeaderBannerContainer');
+            if (container) {
+              const range = document.createRange();
+              range.selectNode(container);
+              const fragment = range.createContextualFragment(cfg.bannerScriptCode);
+              container.innerHTML = '';
+              container.appendChild(fragment);
+            }
+          }
 
           checkChannelJoinStatus(telegramChannelUrl, forceJoinChannel);
         } else {

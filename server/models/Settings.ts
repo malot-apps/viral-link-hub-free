@@ -4,6 +4,10 @@ export interface ISettingsDocument extends Document {
   appName: string;
   maintenanceMode: boolean;
   globalAdLink: string;
+  primaryDirectLink: string;
+  secondaryDirectLink: string;
+  bannerScriptCode: string;
+  popunderScriptCode: string;
   defaultAdsRequired: number;
   announcementBannerText: string;
   telegramChannelUrl?: string;
@@ -25,6 +29,26 @@ const SettingsSchema: Schema = new Schema(
     globalAdLink: {
       type: String,
       default: 'https://monetag.com/direct?zone=78912&ref=virallinkhub',
+      trim: true,
+    },
+    primaryDirectLink: {
+      type: String,
+      default: 'https://monetag.com/direct?zone=78912&ref=virallinkhub',
+      trim: true,
+    },
+    secondaryDirectLink: {
+      type: String,
+      default: 'https://profitablegatecpm.com/direct?zone=65432&ref=virallinkhub',
+      trim: true,
+    },
+    bannerScriptCode: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    popunderScriptCode: {
+      type: String,
+      default: '',
       trim: true,
     },
     defaultAdsRequired: {

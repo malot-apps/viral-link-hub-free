@@ -26,6 +26,10 @@ export interface ISettings {
   appName: string;
   maintenanceMode: boolean;
   globalAdLink: string;
+  primaryDirectLink?: string;
+  secondaryDirectLink?: string;
+  bannerScriptCode?: string;
+  popunderScriptCode?: string;
   defaultAdsRequired: number;
   announcementBannerText: string;
   telegramChannelUrl?: string;

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "if [ -f vercel.json ]; then mv vercel.json .vercel.json.swap && next build; EXIT_CODE=$?; mv .vercel.json.swap vercel.json; exit $EXIT_CODE; else next build; fi",
     "start": "next start",
     "lint": "eslint .",
     "clean": "next clean"
