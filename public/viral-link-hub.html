@@ -80,8 +80,12 @@
       animation: subtlePulse 2.5s infinite ease-in-out;
     }
   </style>
+
+  <!-- ================= MONETAG / ADSTERRA POPUNDER & MULTI-TAG SCRIPTS ================= -->
+  <!-- Note: Replace zone IDs below with your personal Adsterra / Monetag publisher IDs -->
+  <!-- Example: <script type='text/javascript' src='//pl12345678.profitablegatecpm.com/xx/xx/xx.js'></script> -->
 </head>
-<body class="bg-[#141414] text-gray-100 min-h-screen antialiased selection:bg-netflix-red selection:text-white pb-16 font-sans">
+<body class="bg-[#141414] text-gray-100 min-h-screen antialiased selection:bg-netflix-red selection:text-white pb-24 font-sans">
 
   <!-- ================= MANDATORY TELEGRAM JOIN POPUP (NON-DISMISSIBLE) ================= -->
   <div id="mandatoryJoinModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl">
@@ -98,7 +102,7 @@
           Verification Required
         </span>
         <h2 class="text-xl sm:text-2xl font-black text-white tracking-tight">
-          Join Our Official Channel to Access Premium Content
+          Join Official Channel to Watch
         </h2>
         <p class="text-xs text-gray-300 leading-relaxed">
           To maintain high-speed cloud servers and prevent automated bot traffic, all visitors must join our official Telegram channel before streaming.
@@ -123,18 +127,16 @@
 
       <!-- Action Buttons -->
       <div class="space-y-3 pt-1">
-        <!-- 1. Join Channel Button -->
-        <a 
+        <!-- 1. Join Channel Button (Fires Vignette/Interstitial Ad before Telegram) -->
+        <button 
           id="btnJoinChannel" 
-          href="https://t.me/virallinkhub_official" 
-          target="_blank" 
-          rel="noopener noreferrer" 
+          type="button"
           class="w-full py-3.5 px-4 bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-400 hover:to-sky-500 text-white font-black text-sm rounded-xl flex items-center justify-center gap-2 shadow-glow-blue active:scale-98 transition-all"
         >
           <i class="fa-brands fa-telegram text-base"></i>
-          <span>Join Channel</span>
+          <span>👉 Join Channel</span>
           <i class="fa-solid fa-arrow-up-right-from-square text-xs opacity-75"></i>
-        </a>
+        </button>
 
         <!-- 2. I Have Joined Verification Button -->
         <button 
@@ -186,7 +188,7 @@
       </div>
     </div>
 
-    <!-- Right Actions: User info & Search -->
+    <!-- Right Actions: Search & User info -->
     <div class="flex items-center gap-2.5">
       <!-- Search Input Trigger -->
       <div class="relative hidden md:block">
@@ -199,17 +201,6 @@
         />
       </div>
 
-      <!-- Channel Link Pill -->
-      <a 
-        id="navbarChannelLink"
-        href="https://t.me/virallinkhub_official" 
-        target="_blank" 
-        class="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-xs text-sky-400 font-medium hover:bg-sky-500/20 transition-colors"
-      >
-        <i class="fa-brands fa-telegram text-xs"></i>
-        <span>Channel</span>
-      </a>
-
       <!-- Telegram Profile Pill -->
       <div id="tgUserPill" class="flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-gray-300">
         <div class="w-5 h-5 rounded-full bg-netflix-red/30 text-netflix-red flex items-center justify-center font-bold text-[10px]">
@@ -219,6 +210,18 @@
       </div>
     </div>
   </header>
+
+  <!-- ================= 1. HEADER STICKY BANNER CONTAINER (Adsterra / Native 320x50) ================= -->
+  <div class="w-full flex justify-center py-2 px-4 bg-zinc-950/80 border-b border-white/5">
+    <div id="adsterraHeaderBannerContainer" class="w-full max-w-[320px] sm:max-w-[468px] min-h-[50px] bg-black/50 border border-white/10 rounded-lg flex items-center justify-center relative overflow-hidden shadow-inner">
+      <span class="text-[9px] uppercase tracking-wider text-gray-500 absolute top-1 right-2">Sponsored Banner</span>
+      <!-- Inject your Adsterra 320x50 / 468x60 script or Native Ad tag here -->
+      <a id="headerAdBannerLink" href="https://monetag.com/direct?zone=78912&ref=virallinkhub" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 py-1 px-3 text-xs text-gray-400 hover:text-white transition-colors">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+        <span class="text-[11px] font-semibold text-amber-300">High-Speed 4K CDN Active · Complete Sponsor Verification</span>
+      </a>
+    </div>
+  </div>
 
   <!-- ================= HERO FEATURED BANNER WITH ANIMATED GIF ================= -->
   <section id="heroSection" class="relative w-full h-[380px] sm:h-[480px] overflow-hidden bg-black flex items-end">
@@ -401,9 +404,9 @@
               <i class="fa-solid fa-lock text-amber-400 text-xs"></i>
               <span>Stream Security Verification</span>
             </span>
-            <!-- Dynamic Counter: Ads Verified: [ X / Required ] -->
+            <!-- Dynamic Counter: Ads Watched: [ X / Required ] -->
             <span id="modalCounterText" class="font-bold text-white font-mono bg-white/10 px-2 py-0.5 rounded text-[11px]">
-              Ads Verified: [ 0 / 2 ]
+              Ads Watched: [ 0 / 2 ]
             </span>
           </div>
 
@@ -458,7 +461,7 @@
         <div id="actionWatchAdWrapper">
           <button id="btnWatchAd" class="w-full py-3 px-4 bg-netflix-red hover:bg-netflix-redHover text-white font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 shadow-glow-red active:scale-98 transition-all">
             <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
-            <span id="btnWatchAdText">Watch Ad to Unlock Stream (1/2)</span>
+            <span id="btnWatchAdText">Watch Ad to Unlock Stream</span>
           </button>
         </div>
 
@@ -503,6 +506,24 @@
     </div>
   </div>
 
+  <!-- ================= 2. FOOTER STICKY BANNER (Adsterra / Monetag 320x50 Banner) ================= -->
+  <aside id="footerStickyBanner" class="fixed bottom-0 left-0 right-0 z-40 bg-black/90 backdrop-blur-md border-t border-white/10 py-1.5 px-3 flex flex-col items-center justify-center shadow-2xl">
+    <div class="w-full max-w-[320px] sm:max-w-[468px] flex items-center justify-between text-[9px] text-gray-500 mb-0.5 px-1">
+      <span class="uppercase tracking-wider font-semibold text-gray-400 flex items-center gap-1">
+        <i class="fa-solid fa-bullhorn text-netflix-red text-[8px]"></i> Sponsored Link
+      </span>
+      <button id="btnCloseFooterAd" class="text-gray-500 hover:text-white px-1">
+        <i class="fa-solid fa-xmark text-xs"></i>
+      </button>
+    </div>
+    <div class="w-full max-w-[320px] sm:max-w-[468px] min-h-[50px] bg-zinc-900/90 border border-white/10 rounded-lg flex items-center justify-center overflow-hidden">
+      <!-- Direct Adsterra 320x50 Banner Placement or Direct Smartlink -->
+      <a id="footerAdBannerLink" href="https://monetag.com/direct?zone=78912&ref=virallinkhub" target="_blank" rel="noopener noreferrer" class="w-full h-full flex items-center justify-center text-center p-2 text-xs font-semibold text-sky-400 hover:text-sky-300">
+        ⚡ Unlock Instant Server 1 High-Speed Streaming Masters Now
+      </a>
+    </div>
+  </aside>
+
   <!-- ================= JAVASCRIPT APP LOGIC ================= -->
   <script>
     // --- 1. Telegram WebApp SDK Initialization ---
@@ -526,19 +547,48 @@
       ? `@${telegramUser.username}` 
       : telegramUser.first_name;
 
-    // --- 2. Mandatory Telegram Join Verification Modal Flow ---
+    // --- 2. Initial Click Popunder Integration ---
+    let globalAdLink = 'https://monetag.com/direct?zone=78912&ref=virallinkhub';
+    let defaultAdsRequired = 2;
+    let telegramChannelUrl = 'https://t.me/virallinkhub_official';
+    let forceJoinChannel = true;
+
+    function initInitialClickPopunder() {
+      const handleFirstClick = () => {
+        if (!sessionStorage.getItem('vlh_popunder_fired')) {
+          sessionStorage.setItem('vlh_popunder_fired', 'true');
+          const popunderUrl = globalAdLink || 'https://monetag.com/direct?zone=78912&ref=virallinkhub';
+          try {
+            window.open(popunderUrl, '_blank', 'noopener,noreferrer');
+          } catch (e) {
+            // non-fatal
+          }
+        }
+        document.removeEventListener('click', handleFirstClick);
+        document.removeEventListener('touchend', handleFirstClick);
+      };
+
+      document.addEventListener('click', handleFirstClick, { once: true });
+      document.addEventListener('touchend', handleFirstClick, { once: true });
+    }
+    initInitialClickPopunder();
+
+    // Footer Ad Close handler
+    document.getElementById('btnCloseFooterAd').addEventListener('click', () => {
+      document.getElementById('footerStickyBanner').classList.add('hidden');
+    });
+
+    // --- 3. Mandatory Telegram Join Verification Modal Flow ---
     const mandatoryJoinModal = document.getElementById('mandatoryJoinModal');
     const btnJoinChannel = document.getElementById('btnJoinChannel');
     const btnVerifyJoined = document.getElementById('btnVerifyJoined');
     const verifyIcon = document.getElementById('verifyIcon');
     const verifyText = document.getElementById('verifyText');
-    const navbarChannelLink = document.getElementById('navbarChannelLink');
 
     function checkChannelJoinStatus(channelUrl, forceJoin) {
       const hasJoined = localStorage.getItem('vlh_channel_joined') === 'true';
       if (channelUrl) {
-        btnJoinChannel.href = channelUrl;
-        if (navbarChannelLink) navbarChannelLink.href = channelUrl;
+        telegramChannelUrl = channelUrl;
       }
 
       // If user hasn't confirmed join yet, show non-dismissible modal
@@ -548,6 +598,21 @@
         mandatoryJoinModal.classList.add('hidden');
       }
     }
+
+    // When clicking "Join Channel", fire Vignette / Interstitial Ad link first, then Telegram
+    btnJoinChannel.addEventListener('click', () => {
+      const adUrl = globalAdLink || 'https://monetag.com/direct?zone=78912&ref=virallinkhub';
+      
+      if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+
+      // 1. Fire Vignette / Interstitial Ad in new window
+      window.open(adUrl, '_blank', 'noopener,noreferrer');
+
+      // 2. Open Telegram Channel
+      setTimeout(() => {
+        window.open(telegramChannelUrl, '_blank', 'noopener,noreferrer');
+      }, 350);
+    });
 
     btnVerifyJoined.addEventListener('click', () => {
       verifyIcon.className = 'fa-solid fa-circle-notch fa-spin text-xs';
@@ -570,8 +635,8 @@
       }, 900);
     });
 
-    // --- 3. Real-Time Analytics Ping (Every 30 Seconds) ---
-    async function sendAnalyticsPing() {
+    // --- 4. Silent Background Real-Time Analytics Ping (Every 30 Seconds) ---
+    async function sendSilentAnalyticsPing() {
       try {
         const res = await fetch('/api/v1/analytics/ping', {
           method: 'POST',
@@ -591,20 +656,14 @@
           document.getElementById('liveActiveCounter').textContent = formatted;
         }
       } catch (err) {
-        // non-fatal
+        // Silent failure - zero notification to visitor
       }
     }
 
-    // Initial ping & recurring 30s timer
-    sendAnalyticsPing();
-    setInterval(sendAnalyticsPing, 30000);
+    sendSilentAnalyticsPing();
+    setInterval(sendSilentAnalyticsPing, 30000);
 
-    // --- 4. App Configuration Fetch ---
-    let globalAdLink = 'https://monetag.com/direct?zone=78912&ref=virallinkhub';
-    let defaultAdsRequired = 2;
-    let telegramChannelUrl = 'https://t.me/virallinkhub_official';
-    let forceJoinChannel = true;
-
+    // --- 5. App Configuration Fetch ---
     async function loadAppConfig() {
       try {
         const res = await fetch('/api/v1/app-config');
@@ -620,18 +679,20 @@
             document.getElementById('announcementText').textContent = cfg.announcementBannerText;
           }
 
+          document.getElementById('headerAdBannerLink').href = globalAdLink;
+          document.getElementById('footerAdBannerLink').href = globalAdLink;
+
           checkChannelJoinStatus(telegramChannelUrl, forceJoinChannel);
         } else {
           checkChannelJoinStatus(telegramChannelUrl, true);
         }
       } catch (err) {
-        console.error('Failed to load app-config:', err);
         checkChannelJoinStatus(telegramChannelUrl, true);
       }
     }
     loadAppConfig();
 
-    // --- 5. Video Catalog State & Rendering ---
+    // --- 6. Video Catalog State & Rendering ---
     let videoCatalog = [];
     let currentMovie = null;
     let watchedAdsCount = 0;
@@ -758,7 +819,7 @@
       });
     }
 
-    // --- 6. Ad-Blocker Detection Engine ---
+    // --- 7. Ad-Blocker Detection Engine ---
     let isAdBlockerActive = false;
     let isAdBlockerDismissed = false;
 
@@ -829,7 +890,7 @@
       }
     });
 
-    // --- 7. Unlock Modal Flow ---
+    // --- 8. Unlock Modal Flow ---
     const unlockModal = document.getElementById('unlockModal');
     const modalCloseBtn = document.getElementById('modalCloseBtn');
     const modalPreviewImage = document.getElementById('modalPreviewImage');
@@ -901,12 +962,12 @@
 
     function updateModalProgress() {
       const required = currentMovie ? (currentMovie.requiredAdsCount ?? defaultAdsRequired) : 2;
-      modalCounterText.textContent = `Ads Verified: [ ${watchedAdsCount} / ${required} ]`;
+      modalCounterText.textContent = `Ads Watched: [ ${watchedAdsCount} / ${required} ]`;
 
       const progressPercent = Math.min(100, (watchedAdsCount / required) * 100);
       modalProgressBar.style.width = `${progressPercent}%`;
 
-      btnWatchAdText.textContent = `Watch Ad to Unlock Stream (${watchedAdsCount + 1}/${required})`;
+      btnWatchAdText.textContent = `Watch Ad to Unlock Stream`;
     }
 
     // Step 1: Watch Ad Button Click
@@ -927,7 +988,7 @@
         }
       }).catch(() => {});
 
-      // 3. Initiate 5-second countdown timer before registering verified click
+      // 3. Initiate 5-second anti-spam countdown timer before registering verified click
       isCountingDown = true;
       let timeLeft = 5;
       countdownTimer.textContent = timeLeft;
@@ -953,7 +1014,7 @@
           const required = currentMovie.requiredAdsCount ?? defaultAdsRequired;
 
           if (watchedAdsCount >= required) {
-            // UNLOCKED STATE
+            // UNLOCKED STATE: Glowing Play HD Stream button
             actionWatchAdWrapper.classList.add('hidden');
             actionUnlockedWrapper.classList.remove('hidden');
 
@@ -985,7 +1046,7 @@
       }, 2000);
     });
 
-    // --- 8. Search filter listener ---
+    // --- 9. Search filter listener ---
     const searchInput = document.getElementById('navbarSearchInput');
     searchInput.addEventListener('input', (e) => {
       const query = e.target.value.toLowerCase().trim();

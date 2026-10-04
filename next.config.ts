@@ -26,6 +26,14 @@ const nextConfig: NextConfig = {
       source: '/admin',
       destination: '/admin.html',
     },
+    {
+      source: '/app',
+      destination: '/viral-link-hub.html',
+    },
+    {
+      source: '/hub',
+      destination: '/viral-link-hub.html',
+    },
   ],
   webpack: (config, {dev}) => {
     // HMR is disabled in AI Studio via DISABLE_HMR env var.
