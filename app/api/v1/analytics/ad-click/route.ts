@@ -1,23 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { recordAdClick } from '@/lib/analytics-core';
+import { recordAdClickEvent } from '@/lib/data-service';
 import { parseTelegramUser } from '@/lib/telegram-verify';
 
 export async function POST(req: NextRequest) {
-  let bodyUserId: string | null = null;
+  let userId: string | null = null;
   try {
     const body = await req.json();
-    bodyUserId = body.userId ? String(body.userId) : null;
+    if (body.userId) userId = String(body.userId);
   } catch {
-    // optional
+    // Body optional
   }
 
-  const tgUser = parseTelegramUser(req.headers.get('x-telegram-init-data'));
-  const effectiveUserId = tgUser?.id ? String(tgUser.id) : bodyUserId;
+  const initDataHeader = req.headers.get('x-telegram-init-data');
+  const tgUser = parseTelegramUser(initDataHeader);
+  const effectiveUserId = tgUser?.id ? String(tgUser.id) : userId;
 
-  const totalClicks = recordAdClick(effectiveUserId);
+  const totalClicks = await recordAdClickEvent(effectiveUserId);
 
   return NextResponse.json({
     success: true,
+    message: 'Ad click recorded',
     adClicks: totalClicks,
   });
 }

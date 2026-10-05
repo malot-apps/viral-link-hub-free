@@ -65,8 +65,7 @@ export default function HomePage() {
   const [mobileActiveTab, setMobileActiveTab] = useState<string>('home');
 
   // Live Stats & Heartbeat
-  const [liveUsersCount, setLiveUsersCount] = useState<number>(3);
-  const [adminToken, setAdminToken] = useState<string | null>(null);
+  const [liveUsersCount, setLiveUsersCount] = useState<number>(1);
 
   // Initialize Telegram WebApp or local storage asynchronously
   useEffect(() => {
@@ -79,11 +78,6 @@ export default function HomePage() {
         if (tg.initDataUnsafe?.user) {
           setTelegramUser(tg.initDataUnsafe.user);
         }
-      }
-
-      const savedToken = localStorage.getItem('vlh_admin_token');
-      if (savedToken) {
-        setAdminToken(savedToken);
       }
     }, 0);
     return () => clearTimeout(timer);
@@ -202,16 +196,6 @@ export default function HomePage() {
     );
   };
 
-  const handleLoginSuccess = (token: string) => {
-    setAdminToken(token);
-    localStorage.setItem('vlh_admin_token', token);
-  };
-
-  const handleLogout = () => {
-    setAdminToken(null);
-    localStorage.removeItem('vlh_admin_token');
-  };
-
   return (
     <div className="min-h-screen bg-[#090a0f] text-zinc-100 flex flex-col font-sans">
       {/* Dynamic Announcement Banner */}
@@ -225,12 +209,12 @@ export default function HomePage() {
         telegramUser={telegramUser}
         onOpenUserModal={() => setIsUserModalOpen(true)}
         onOpenAdmin={() => setIsAdminModalOpen(true)}
-        isAdminLoggedIn={Boolean(adminToken)}
+        isAdminLoggedIn={false}
         liveUsersCount={liveUsersCount}
       />
 
       {/* Maintenance Mode Handling */}
-      {settings.maintenanceMode && !adminToken && !maintenanceBypassed ? (
+      {settings.maintenanceMode && !maintenanceBypassed ? (
         <MaintenanceScreen
           appName={settings.appName}
           onOpenAdmin={() => setIsAdminModalOpen(true)}
@@ -394,12 +378,8 @@ export default function HomePage() {
       <AdminDashboard
         isOpen={isAdminModalOpen}
         onClose={() => setIsAdminModalOpen(false)}
-        adminToken={adminToken}
-        onLoginSuccess={handleLoginSuccess}
-        onLogout={handleLogout}
         onSettingsUpdated={(newSettings) => setSettings(newSettings)}
         onVideosUpdated={loadMovies}
-        allVideos={movies}
       />
 
       {/* Footer */}

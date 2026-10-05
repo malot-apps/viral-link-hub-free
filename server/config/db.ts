@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+mongoose.set('bufferCommands', false);
 import { Video } from '../models/Video';
 import { Settings } from '../models/Settings';
 

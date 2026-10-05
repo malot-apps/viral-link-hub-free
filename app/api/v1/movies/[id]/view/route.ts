@@ -1,20 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { incrementVideoViews, getVideoById } from '@/lib/db-store';
-import { handleRequestMetrics } from '@/lib/extract-client';
+import { incrementVideoViewCount, fetchVideoById } from '@/lib/data-service';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  handleRequestMetrics(req);
   const { id } = await params;
-  const video = getVideoById(id);
 
-  if (!video) {
-    return NextResponse.json({ success: false, error: 'Video not found' }, { status: 404 });
+  try {
+    const video = await fetchVideoById(id);
+
+    if (!video) {
+      return NextResponse.json({ success: false, error: 'Video not found' }, { status: 404 });
+    }
+
+    const newViews = await incrementVideoViewCount(id);
+
+    return NextResponse.json({
+      success: true,
+      viewsCount: newViews,
+    });
+  } catch (error: any) {
+    console.error('[Movie View Error]:', error.message);
+    return NextResponse.json(
+      { success: false, error: 'Failed to record view' },
+      { status: 500 }
+    );
   }
-
-  const newViews = incrementVideoViews(id);
-
-  return NextResponse.json({
-    success: true,
-    viewsCount: newViews,
-  });
 }

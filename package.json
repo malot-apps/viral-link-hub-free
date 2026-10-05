@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "if [ -f vercel.json ]; then mv vercel.json .vercel.json.swap && next build; EXIT_CODE=$?; mv .vercel.json.swap vercel.json; exit $EXIT_CODE; else next build; fi",
+    "dev": "next dev -p 3000 -H 0.0.0.0",
+    "build": "NODE_ENV=production next build",
     "start": "next start",
     "lint": "eslint .",
     "clean": "next clean"

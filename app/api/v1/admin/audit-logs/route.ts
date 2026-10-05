@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchAdminStats } from '@/lib/data-service';
+import { fetchAuditLogs } from '@/lib/data-service';
 import { verifyAdminSession } from '@/lib/admin-auth';
 
 export async function GET(req: NextRequest) {
@@ -13,16 +13,20 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const stats = await fetchAdminStats();
+    const { searchParams } = req.nextUrl;
+    const limit = Math.min(100, Math.max(1, Number(searchParams.get('limit') || 50)));
+
+    const logs = await fetchAuditLogs(limit);
 
     return NextResponse.json({
       success: true,
-      data: stats,
+      count: logs.length,
+      data: logs,
     });
   } catch (error: any) {
-    console.error('[Admin Stats Error]:', error.message);
+    console.error('[Admin Audit Logs GET Error]:', error.message);
     return NextResponse.json(
-      { success: false, error: 'Failed to retrieve analytics metrics' },
+      { success: false, error: 'Failed to retrieve audit logs' },
       { status: 503 }
     );
   }

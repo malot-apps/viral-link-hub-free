@@ -1,6 +1,7 @@
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
   reactStrictMode: true,
   eslint: {
     ignoreDuringBuilds: true,
@@ -21,10 +22,6 @@ const nextConfig: NextConfig = {
   },
   transpilePackages: ['motion'],
   rewrites: async () => [
-    {
-      source: '/admin',
-      destination: '/admin.html',
-    },
     {
       source: '/app',
       destination: '/viral-link-hub.html',

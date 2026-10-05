@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import {
   X,
   Lock,
@@ -19,47 +20,68 @@ import {
   Shield,
   Film,
   Sparkles,
+  Search,
+  ExternalLink,
+  AlertTriangle,
+  Radio,
+  Clock,
+  Database,
+  ArrowLeft,
+  ChevronRight,
+  Info,
 } from 'lucide-react';
 import { IVideo, ISettings, IVisitorLog } from '@/lib/types';
 
 interface AdminStats {
   liveActiveUsers: number;
-  totalUniqueVisitors: number;
-  totalViews: number;
-  adsRevenueClicks: number;
+  totalUniqueVisitors: number | string;
+  totalViews: number | string;
+  adsRevenueClicks: number | string;
   totalVideos: number;
   featuredVideos: number;
   activeWindowMinutes: number;
   recentLogs: IVisitorLog[];
   generatedAt: string;
+  mode: 'production' | 'demo';
+}
+
+interface AuditLogItem {
+  _id: string;
+  admin: string;
+  action: string;
+  target?: string;
+  metadata?: Record<string, any>;
+  ip: string;
+  userAgent: string;
+  createdAt: string;
 }
 
 interface AdminDashboardProps {
-  isOpen: boolean;
-  onClose: () => void;
-  adminToken: string | null;
-  onLoginSuccess: (token: string) => void;
-  onLogout: () => void;
-  onSettingsUpdated: (newSettings: ISettings) => void;
-  onVideosUpdated: () => void;
-  allVideos: IVideo[];
+  standalone?: boolean;
+  isOpen?: boolean;
+  onClose?: () => void;
+  onSettingsUpdated?: (newSettings: ISettings) => void;
+  onVideosUpdated?: () => void;
 }
 
 export default function AdminDashboard({
-  isOpen,
+  standalone = false,
+  isOpen = true,
   onClose,
-  adminToken,
-  onLoginSuccess,
-  onLogout,
   onSettingsUpdated,
   onVideosUpdated,
-  allVideos,
 }: AdminDashboardProps) {
-  const [activeTab, setActiveTab] = useState<'analytics' | 'videos' | 'settings' | 'api-console'>('analytics');
+  // Authentication & Session
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [adminUser, setAdminUser] = useState<{ username: string; role: string } | null>(null);
+  const [appMode, setAppMode] = useState<'production' | 'demo'>('production');
+
+  // Navigation Tabs
+  const [activeTab, setActiveTab] = useState<'analytics' | 'videos' | 'settings' | 'audit' | 'api-console'>('analytics');
 
   // Login form state
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('virallinkhub2026!');
+  const [usernameInput, setUsernameInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
@@ -67,36 +89,57 @@ export default function AdminDashboard({
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(false);
 
-  // Settings form state
-  const [settingsForm, setSettingsForm] = useState<ISettings>({
-    appName: 'VIRAL LINK HUB',
-    maintenanceMode: false,
-    globalAdLink: 'https://monetag.com/direct?zone=98765&ref=virallinkhub',
-    defaultAdsRequired: 2,
-    announcementBannerText: '🔥 High-Speed Terabox Links active! Complete sponsor task to unlock.',
-    telegramChannelUrl: 'https://t.me/virallinkhub',
-  });
-  const [isSavingSettings, setIsSavingSettings] = useState(false);
-  const [settingsSuccess, setSettingsSuccess] = useState(false);
+  // Video catalog state
+  const [videosList, setVideosList] = useState<IVideo[]>([]);
+  const [isLoadingVideos, setIsLoadingVideos] = useState(false);
+  const [videoSearchQuery, setVideoSearchQuery] = useState('');
+  const [videoCategoryFilter, setVideoCategoryFilter] = useState('All');
+  const [videoFeaturedFilter, setVideoFeaturedFilter] = useState<boolean | null>(null);
 
-  // Video modal state
+  // Video modal & delete confirmation
   const [videoModalOpen, setVideoModalOpen] = useState(false);
   const [editingVideoId, setEditingVideoId] = useState<string | null>(null);
+  const [videoFormError, setVideoFormError] = useState('');
+  const [isSavingVideo, setIsSavingVideo] = useState(false);
+  const [deleteConfirmVideo, setDeleteConfirmVideo] = useState<IVideo | null>(null);
+  const [isDeletingVideo, setIsDeletingVideo] = useState(false);
+
   const [videoForm, setVideoForm] = useState({
     title: '',
     description: '',
     posterUrl: '/images/hero_viral_cyberpunk.jpg',
     bannerUrl: '/images/hero_viral_cyberpunk.jpg',
     category: 'Trending',
-    targetLink: 'https://terabox.app/s/',
-    targetType: 'terabox',
+    streamUrl: '',
     directAdLink: '',
     requiredAdsCount: 2,
     isFeatured: false,
     fileSize: '1.4 GB',
     quality: '1080p HD',
+    tags: 'Action, Viral',
   });
-  const [isSavingVideo, setIsSavingVideo] = useState(false);
+
+  // Settings form state
+  const [settingsForm, setSettingsForm] = useState<ISettings>({
+    appName: 'VIRAL LINK HUB',
+    maintenanceMode: false,
+    globalAdLink: 'https://monetag.com/direct?zone=78912&ref=virallinkhub',
+    primaryDirectLink: 'https://monetag.com/direct?zone=78912&ref=virallinkhub',
+    secondaryDirectLink: '',
+    defaultAdsRequired: 2,
+    announcementBannerText: '🔥 High-Speed Direct Cloud Streams active!',
+    telegramChannelUrl: 'https://t.me/virallinkhub_official',
+    forceJoinChannel: false,
+    bannerScriptCode: '',
+    popunderScriptCode: '',
+  });
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [settingsSuccess, setSettingsSuccess] = useState(false);
+  const [settingsError, setSettingsError] = useState('');
+
+  // Audit Logs state
+  const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
+  const [isLoadingAudit, setIsLoadingAudit] = useState(false);
 
   // API Console State
   const [apiConsoleResult, setApiConsoleResult] = useState<{
@@ -106,35 +149,68 @@ export default function AdminDashboard({
   } | null>(null);
   const [isLoadingConsole, setIsLoadingConsole] = useState(false);
 
+  // Check existing session via HttpOnly Cookie
+  const checkSession = useCallback(async () => {
+    try {
+      const res = await fetch('/api/v1/admin/auth/me');
+      const data = await res.json();
+      if (data.success && data.authenticated) {
+        setIsAuthenticated(true);
+        setAdminUser(data.admin);
+        setAppMode(data.mode);
+      } else {
+        setIsAuthenticated(false);
+        if (data.mode) setAppMode(data.mode);
+      }
+    } catch {
+      setIsAuthenticated(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkSession();
+  }, [checkSession]);
+
   // Fetch admin stats
   const fetchStats = useCallback(async () => {
-    if (!adminToken) return;
+    if (!isAuthenticated) return;
+    setIsLoadingStats(true);
     try {
-      const res = await fetch('/api/v1/admin/stats', {
-        headers: {
-          Authorization: `Bearer ${adminToken}`,
-        },
-      });
+      const res = await fetch('/api/v1/admin/stats');
       const data = await res.json();
-      if (data.success) {
+      if (data.success && data.data) {
         setStats(data.data);
+        if (data.data.mode) setAppMode(data.data.mode);
       }
     } catch {
       // non-fatal
     } finally {
       setIsLoadingStats(false);
     }
-  }, [adminToken]);
+  }, [isAuthenticated]);
+
+  // Fetch videos
+  const fetchVideosList = useCallback(async () => {
+    if (!isAuthenticated) return;
+    setIsLoadingVideos(true);
+    try {
+      const res = await fetch('/api/v1/admin/videos');
+      const data = await res.json();
+      if (data.success && data.data) {
+        setVideosList(data.data);
+      }
+    } catch {
+      // non-fatal
+    } finally {
+      setIsLoadingVideos(false);
+    }
+  }, [isAuthenticated]);
 
   // Fetch settings
   const fetchSettings = useCallback(async () => {
-    if (!adminToken) return;
+    if (!isAuthenticated) return;
     try {
-      const res = await fetch('/api/v1/admin/settings', {
-        headers: {
-          Authorization: `Bearer ${adminToken}`,
-        },
-      });
+      const res = await fetch('/api/v1/admin/settings');
       const data = await res.json();
       if (data.success && data.data) {
         setSettingsForm(data.data);
@@ -142,18 +218,37 @@ export default function AdminDashboard({
     } catch {
       // non-fatal
     }
-  }, [adminToken]);
+  }, [isAuthenticated]);
 
+  // Fetch audit logs
+  const fetchAuditLogsList = useCallback(async () => {
+    if (!isAuthenticated) return;
+    setIsLoadingAudit(true);
+    try {
+      const res = await fetch('/api/v1/admin/audit-logs?limit=50');
+      const data = await res.json();
+      if (data.success && data.data) {
+        setAuditLogs(data.data);
+      }
+    } catch {
+      // non-fatal
+    } finally {
+      setIsLoadingAudit(false);
+    }
+  }, [isAuthenticated]);
+
+  // Load data when authenticated
   useEffect(() => {
-    if (adminToken && isOpen) {
+    if (isAuthenticated) {
       fetchStats();
+      fetchVideosList();
       fetchSettings();
-      const interval = setInterval(fetchStats, 10000); // 10s auto-refresh
+      fetchAuditLogsList();
+
+      const interval = setInterval(fetchStats, 15000);
       return () => clearInterval(interval);
     }
-  }, [adminToken, isOpen, fetchStats, fetchSettings]);
-
-  if (!isOpen) return null;
+  }, [isAuthenticated, fetchStats, fetchVideosList, fetchSettings, fetchAuditLogsList]);
 
   // Handle Login
   const handleLogin = async (e: React.FormEvent) => {
@@ -165,68 +260,91 @@ export default function AdminDashboard({
       const res = await fetch('/api/v1/admin/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({
+          username: usernameInput,
+          password: passwordInput,
+        }),
       });
+
       const data = await res.json();
 
-      if (data.success && data.token) {
-        onLoginSuccess(data.token);
+      if (data.success) {
+        setIsAuthenticated(true);
+        setAdminUser(data.admin);
+        if (data.mode) setAppMode(data.mode);
+        setPasswordInput('');
+        fetchStats();
+        fetchVideosList();
+        fetchSettings();
       } else {
-        setLoginError(data.error || 'Invalid credentials');
+        setLoginError(data.error || 'Authentication failed. Please verify credentials.');
       }
     } catch {
-      setLoginError('Server error during login');
+      setLoginError('Server network error during authentication.');
     } finally {
       setIsLoggingIn(false);
     }
   };
 
+  // Handle Logout
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/v1/admin/auth/logout', { method: 'POST' });
+    } catch {
+      // non-fatal
+    }
+    setIsAuthenticated(false);
+    setAdminUser(null);
+    setStats(null);
+  };
+
   // Handle Save Settings
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!adminToken) return;
     setIsSavingSettings(true);
     setSettingsSuccess(false);
+    setSettingsError('');
 
     try {
       const res = await fetch('/api/v1/admin/settings', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${adminToken}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settingsForm),
       });
       const data = await res.json();
       if (data.success) {
         setSettingsSuccess(true);
-        onSettingsUpdated(data.data);
-        setTimeout(() => setSettingsSuccess(false), 3000);
+        if (onSettingsUpdated) onSettingsUpdated(data.data);
+        fetchAuditLogsList();
+        setTimeout(() => setSettingsSuccess(false), 4000);
+      } else {
+        setSettingsError(data.error || 'Failed to update settings');
       }
     } catch {
-      // error
+      setSettingsError('Network failure saving settings.');
     } finally {
       setIsSavingSettings(false);
     }
   };
 
-  // Handle Video Create/Update
+  // Open Video Modal
   const handleOpenVideoModal = (video?: IVideo) => {
+    setVideoFormError('');
     if (video) {
       setEditingVideoId(video._id);
       setVideoForm({
         title: video.title,
-        description: video.description,
+        description: video.description || '',
         posterUrl: video.posterUrl,
         bannerUrl: video.bannerUrl || video.posterUrl,
         category: video.category,
-        targetLink: video.streamUrl || video.targetLink || '',
-        targetType: video.targetType || 'direct_stream',
+        streamUrl: video.streamUrl || video.targetLink || '',
         directAdLink: video.directAdLink || '',
         requiredAdsCount: video.requiredAdsCount ?? 2,
         isFeatured: Boolean(video.isFeatured),
         fileSize: video.fileSize || '1.4 GB',
         quality: video.quality || '1080p HD',
+        tags: Array.isArray(video.tags) ? video.tags.join(', ') : '',
       });
     } else {
       setEditingVideoId(null);
@@ -236,21 +354,28 @@ export default function AdminDashboard({
         posterUrl: '/images/hero_viral_cyberpunk.jpg',
         bannerUrl: '/images/hero_viral_cyberpunk.jpg',
         category: 'Trending',
-        targetLink: 'https://terabox.app/s/',
-        targetType: 'terabox',
+        streamUrl: '',
         directAdLink: '',
         requiredAdsCount: 2,
         isFeatured: false,
         fileSize: '1.4 GB',
         quality: '1080p HD',
+        tags: 'Viral, Streaming, HD',
       });
     }
     setVideoModalOpen(true);
   };
 
+  // Save Video
   const handleSaveVideo = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!adminToken) return;
+    setVideoFormError('');
+
+    if (!videoForm.title.trim() || !videoForm.streamUrl.trim() || !videoForm.posterUrl.trim()) {
+      setVideoFormError('Title, Stream URL, and Poster URL are required.');
+      return;
+    }
+
     setIsSavingVideo(true);
 
     try {
@@ -259,795 +384,1359 @@ export default function AdminDashboard({
         : '/api/v1/admin/videos';
       const method = editingVideoId ? 'PUT' : 'POST';
 
+      const payload = {
+        title: videoForm.title.trim(),
+        description: videoForm.description.trim(),
+        posterUrl: videoForm.posterUrl.trim(),
+        bannerUrl: videoForm.bannerUrl.trim() || videoForm.posterUrl.trim(),
+        category: videoForm.category,
+        streamUrl: videoForm.streamUrl.trim(),
+        targetLink: videoForm.streamUrl.trim(),
+        directAdLink: videoForm.directAdLink.trim(),
+        requiredAdsCount: Number(videoForm.requiredAdsCount),
+        isFeatured: Boolean(videoForm.isFeatured),
+        fileSize: videoForm.fileSize.trim(),
+        quality: videoForm.quality.trim(),
+        tags: videoForm.tags
+          .split(',')
+          .map((t) => t.trim())
+          .filter(Boolean),
+      };
+
       const res = await fetch(url, {
         method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${adminToken}`,
-        },
-        body: JSON.stringify(videoForm),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
+
       if (data.success) {
         setVideoModalOpen(false);
-        onVideosUpdated();
+        fetchVideosList();
         fetchStats();
+        fetchAuditLogsList();
+        if (onVideosUpdated) onVideosUpdated();
+      } else {
+        setVideoFormError(data.error || 'Failed to save video record.');
       }
     } catch {
-      // non-fatal
+      setVideoFormError('Network communication error saving video.');
     } finally {
       setIsSavingVideo(false);
     }
   };
 
-  const handleDeleteVideo = async (id: string) => {
-    if (!adminToken || !confirm('Are you sure you want to delete this video?')) return;
+  // Delete Video
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirmVideo) return;
+    setIsDeletingVideo(true);
 
     try {
-      const res = await fetch(`/api/v1/admin/videos/${id}`, {
+      const res = await fetch(`/api/v1/admin/videos/${deleteConfirmVideo._id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${adminToken}` },
       });
       const data = await res.json();
       if (data.success) {
-        onVideosUpdated();
+        setDeleteConfirmVideo(null);
+        fetchVideosList();
         fetchStats();
+        fetchAuditLogsList();
+        if (onVideosUpdated) onVideosUpdated();
       }
     } catch {
-      // error
+      // non-fatal
+    } finally {
+      setIsDeletingVideo(false);
     }
   };
 
-  // Run test endpoint in API Console
-  const handleTestEndpoint = async (endpoint: string, method: string = 'GET', body?: unknown) => {
+  // API Console Runner
+  const handleTestEndpoint = async (endpoint: string, method = 'GET', body?: unknown) => {
     setIsLoadingConsole(true);
+    setApiConsoleResult(null);
     try {
-      const headers: Record<string, string> = {};
-      if (endpoint.includes('/admin/')) {
-        headers['Authorization'] = `Bearer ${adminToken}`;
-      }
-      if (body) {
-        headers['Content-Type'] = 'application/json';
-      }
-
       const res = await fetch(endpoint, {
         method,
-        headers,
+        headers: { 'Content-Type': 'application/json' },
         body: body ? JSON.stringify(body) : undefined,
       });
-
       const data = await res.json();
       setApiConsoleResult({
-        endpoint: `${method} ${endpoint}`,
+        endpoint,
         status: res.status,
         data,
       });
-    } catch (err: unknown) {
+    } catch (err: any) {
       setApiConsoleResult({
-        endpoint: `${method} ${endpoint}`,
+        endpoint,
         status: 500,
-        data: { error: err instanceof Error ? err.message : 'Request failed' },
+        data: { error: err.message || 'Execution error' },
       });
     } finally {
       setIsLoadingConsole(false);
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative flex h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-white/10 bg-[#0e1017] shadow-2xl">
-        {/* Top Header */}
-        <div className="flex items-center justify-between border-b border-white/10 px-5 py-3.5 bg-zinc-900/80">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-7 w-7 items-center justify-center rounded bg-[#e50914] text-white font-black text-xs">
-              VLH
+  // Filtered video list for UI
+  const filteredVideos = useMemo(() => {
+    return videosList.filter((v) => {
+      const matchesSearch =
+        !videoSearchQuery.trim() ||
+        v.title.toLowerCase().includes(videoSearchQuery.toLowerCase()) ||
+        v.description?.toLowerCase().includes(videoSearchQuery.toLowerCase()) ||
+        v.tags?.some((t) => t.toLowerCase().includes(videoSearchQuery.toLowerCase()));
+
+      const matchesCategory =
+        videoCategoryFilter === 'All' ||
+        v.category.toLowerCase() === videoCategoryFilter.toLowerCase();
+
+      const matchesFeatured =
+        videoFeaturedFilter === null || v.isFeatured === videoFeaturedFilter;
+
+      return matchesSearch && matchesCategory && matchesFeatured;
+    });
+  }, [videosList, videoSearchQuery, videoCategoryFilter, videoFeaturedFilter]);
+
+  if (!isOpen && !standalone) return null;
+
+  // -------------------------------------------------------------
+  // VIEW: LOGIN SCREEN (When Unauthenticated)
+  // -------------------------------------------------------------
+  if (isAuthenticated === false) {
+    return (
+      <div className={`${standalone ? 'min-h-screen' : 'fixed inset-0 z-50'} flex items-center justify-center bg-[#0b0d13] p-4`}>
+        <div className="w-full max-w-md bg-[#131722]/90 border border-white/10 rounded-2xl p-8 backdrop-blur-xl shadow-2xl shadow-black/80">
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#e50914] to-red-600 flex items-center justify-center shadow-lg shadow-red-600/30">
+                <Shield className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-black tracking-tight text-white uppercase">
+                  Viral Link Hub
+                </h2>
+                <span className="text-xs text-slate-400 font-medium">
+                  Executive Security Portal
+                </span>
+              </div>
             </div>
-            <div>
-              <h2 className="text-sm font-bold text-white tracking-tight">
-                VIRAL LINK HUB · Admin Operations Portal
-              </h2>
-              <p className="text-[11px] text-zinc-400">
-                Real-Time Analytics &middot; Terabox Monetization &middot; JWT Protected
-              </p>
+
+            {/* Application Mode Badge */}
+            <div
+              className={`px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase flex items-center gap-1.5 ${
+                appMode === 'demo'
+                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                  : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+              }`}
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full animate-pulse ${
+                  appMode === 'demo' ? 'bg-amber-400' : 'bg-emerald-400'
+                }`}
+              />
+              {appMode}
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            {adminToken && (
-              <button
-                onClick={onLogout}
-                className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-zinc-400 hover:bg-white/10 hover:text-white"
-                title="Log out"
-              >
-                <LogOut className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Logout</span>
-              </button>
-            )}
+          {/* Demo helper banner if in demo mode */}
+          {appMode === 'demo' && (
+            <div className="mb-6 p-3.5 bg-amber-500/10 border border-amber-500/25 rounded-xl text-amber-200/90 text-xs flex items-start gap-2.5">
+              <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-amber-300">Demo Mode Active</p>
+                <p className="text-[11px] text-amber-200/80 mt-0.5">
+                  Demo credentials: <code className="bg-black/30 px-1 py-0.5 rounded text-amber-300 font-mono">demo_admin</code> / <code className="bg-black/30 px-1 py-0.5 rounded text-amber-300 font-mono">ViralDemo2026!</code>
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Error Message */}
+          {loginError && (
+            <div className="mb-6 p-3.5 bg-red-500/15 border border-red-500/30 rounded-xl text-red-200 text-xs flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+              <span>{loginError}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleLogin} className="space-y-5">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                Administrator Username
+              </label>
+              <input
+                type="text"
+                value={usernameInput}
+                onChange={(e) => setUsernameInput(e.target.value)}
+                placeholder="Enter admin username"
+                required
+                autoComplete="username"
+                className="w-full bg-[#181d2c] border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-[#e50914] focus:ring-1 focus:ring-[#e50914] transition"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                Security Passphrase
+              </label>
+              <input
+                type="password"
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                placeholder="••••••••••••••••"
+                required
+                autoComplete="current-password"
+                className="w-full bg-[#181d2c] border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-[#e50914] focus:ring-1 focus:ring-[#e50914] transition"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoggingIn}
+              className="w-full mt-2 py-3.5 bg-gradient-to-r from-[#e50914] to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl font-bold text-sm tracking-wide shadow-lg shadow-red-600/30 transition duration-200 flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {isLoggingIn ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Verifying Session...</span>
+                </>
+              ) : (
+                <>
+                  <Lock className="w-4 h-4" />
+                  <span>Authenticate & Open Dashboard</span>
+                </>
+              )}
+            </button>
+          </form>
+
+          <div className="mt-8 pt-6 border-t border-white/5 flex items-center justify-between text-xs text-slate-500">
+            <Link href="/" className="hover:text-slate-300 transition flex items-center gap-1.5">
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Back to Public Hub</span>
+            </Link>
+            <span className="font-mono text-[11px]">v1.0 Production</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------------
+  // VIEW: LOADING SESSION
+  // -------------------------------------------------------------
+  if (isAuthenticated === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0b0d13]">
+        <div className="flex flex-col items-center gap-3 text-slate-400">
+          <RefreshCw className="w-6 h-6 animate-spin text-[#e50914]" />
+          <span className="text-xs uppercase tracking-widest font-mono">Initializing Console...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------------
+  // VIEW: AUTHENTICATED DASHBOARD
+  // -------------------------------------------------------------
+  return (
+    <div className={`${standalone ? 'min-h-screen' : 'fixed inset-0 z-50 overflow-y-auto'} bg-[#0b0d13] text-[#e2e8f0]`}>
+      {/* Top Navbar */}
+      <header className="sticky top-0 z-40 bg-[#0e121b]/95 backdrop-blur-md border-b border-white/10 px-4 sm:px-8 py-3.5 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          {!standalone && onClose && (
             <button
               onClick={onClose}
-              className="rounded-lg p-1.5 text-zinc-400 hover:bg-white/10 hover:text-white"
+              className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition"
+              title="Close modal"
             >
-              <X className="h-4 w-4" />
+              <X className="w-5 h-5" />
             </button>
+          )}
+
+          <Link href="/" className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-[#e50914] flex items-center justify-center font-black text-white text-base shadow-md shadow-red-600/30">
+              V
+            </div>
+            <div>
+              <h1 className="text-sm sm:text-base font-black tracking-tight text-white leading-none uppercase">
+                Viral Link Hub
+              </h1>
+              <span className="text-[10px] text-slate-400 font-semibold tracking-wider uppercase">
+                Production Admin Engine
+              </span>
+            </div>
+          </Link>
+
+          {/* Mode Pill */}
+          <div
+            className={`hidden sm:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-widest uppercase ${
+              appMode === 'demo'
+                ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                : 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+            }`}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full animate-pulse ${
+                appMode === 'demo' ? 'bg-amber-400' : 'bg-emerald-400'
+              }`}
+            />
+            {appMode === 'demo' ? 'Demo Mode Active' : 'Production Mode (MongoDB)'}
           </div>
         </div>
 
-        {/* Not Logged In -> Show JWT Login */}
-        {!adminToken ? (
-          <div className="flex flex-1 items-center justify-center p-6">
-            <div className="w-full max-w-sm space-y-5 rounded-xl border border-white/10 bg-zinc-900/60 p-6 backdrop-blur-sm">
-              <div className="text-center space-y-1">
-                <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-[#e50914]/20 text-[#e50914]">
-                  <Lock className="h-5 w-5" />
+        <div className="flex items-center gap-3">
+          <Link
+            href="/"
+            className="hidden md:flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10"
+          >
+            <Eye className="w-3.5 h-3.5" />
+            <span>Public Site</span>
+          </Link>
+
+          <button
+            onClick={() => {
+              fetchStats();
+              fetchVideosList();
+              fetchAuditLogsList();
+            }}
+            className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition"
+            title="Refresh metrics"
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoadingStats ? 'animate-spin text-red-500' : ''}`} />
+          </button>
+
+          <div className="h-6 w-px bg-white/10" />
+
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center text-xs font-bold text-slate-300">
+              {adminUser?.username?.[0]?.toUpperCase() || 'A'}
+            </div>
+            <span className="hidden sm:inline text-xs font-medium text-slate-300">
+              {adminUser?.username || 'Admin'}
+            </span>
+          </div>
+
+          <button
+            onClick={handleLogout}
+            className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 transition flex items-center gap-1.5 text-xs font-semibold"
+            title="Sign out"
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="hidden sm:inline">Logout</span>
+          </button>
+        </div>
+      </header>
+
+      {/* Main Container */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-8 py-6">
+        {/* Navigation Tabs */}
+        <div className="flex items-center gap-1 sm:gap-2 p-1 bg-[#131722] rounded-xl border border-white/5 mb-6 overflow-x-auto scrollbar-none">
+          <button
+            onClick={() => setActiveTab('analytics')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold tracking-wide transition whitespace-nowrap ${
+              activeTab === 'analytics'
+                ? 'bg-[#e50914] text-white shadow-md shadow-red-600/20'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Activity className="w-4 h-4" />
+            <span>Overview & Analytics</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('videos')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold tracking-wide transition whitespace-nowrap ${
+              activeTab === 'videos'
+                ? 'bg-[#e50914] text-white shadow-md shadow-red-600/20'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Film className="w-4 h-4" />
+            <span>Video Catalog ({videosList.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold tracking-wide transition whitespace-nowrap ${
+              activeTab === 'settings'
+                ? 'bg-[#e50914] text-white shadow-md shadow-red-600/20'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <SettingsIcon className="w-4 h-4" />
+            <span>Monetization & Settings</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('audit')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold tracking-wide transition whitespace-nowrap ${
+              activeTab === 'audit'
+                ? 'bg-[#e50914] text-white shadow-md shadow-red-600/20'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Clock className="w-4 h-4" />
+            <span>Audit Trail</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('api-console')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold tracking-wide transition whitespace-nowrap ${
+              activeTab === 'api-console'
+                ? 'bg-[#e50914] text-white shadow-md shadow-red-600/20'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Terminal className="w-4 h-4" />
+            <span>System Diagnostics</span>
+          </button>
+        </div>
+
+        {/* ------------------------------------------------------------- */}
+        {/* TAB 1: OVERVIEW & ANALYTICS                                   */}
+        {/* ------------------------------------------------------------- */}
+        {activeTab === 'analytics' && (
+          <div className="space-y-6">
+            {/* Top Stat Cards Grid */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-[#131722]/80 border border-white/10 rounded-2xl p-5 relative overflow-hidden group">
+                <div className="flex items-center justify-between text-slate-400 mb-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider">Live Active Users</span>
+                  <Radio className="w-4 h-4 text-emerald-400 animate-pulse" />
                 </div>
-                <h3 className="text-base font-bold text-white">Admin Authentication</h3>
-                <p className="text-xs text-zinc-400">
-                  Enter credentials to access stats and backend controls.
-                </p>
+                <div className="text-3xl font-black text-white tracking-tight">
+                  {stats?.liveActiveUsers ?? 1}
+                </div>
+                <div className="mt-2 text-[11px] text-slate-400 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  <span>5-minute sliding session window</span>
+                </div>
               </div>
 
-              {loginError && (
-                <div className="rounded-lg border border-red-500/30 bg-red-950/20 px-3 py-2 text-xs text-red-300">
-                  {loginError}
+              <div className="bg-[#131722]/80 border border-white/10 rounded-2xl p-5 relative overflow-hidden">
+                <div className="flex items-center justify-between text-slate-400 mb-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider">Unique Visitors</span>
+                  <Users className="w-4 h-4 text-sky-400" />
                 </div>
-              )}
+                <div className="text-3xl font-black text-white tracking-tight">
+                  {stats ? Number(stats.totalUniqueVisitors).toLocaleString() : 'N/A'}
+                </div>
+                <div className="mt-2 text-[11px] text-slate-400">
+                  Total unique Telegram IDs tracked
+                </div>
+              </div>
 
-              <form onSubmit={handleLogin} className="space-y-3.5">
+              <div className="bg-[#131722]/80 border border-white/10 rounded-2xl p-5 relative overflow-hidden">
+                <div className="flex items-center justify-between text-slate-400 mb-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider">Total Video Views</span>
+                  <Eye className="w-4 h-4 text-purple-400" />
+                </div>
+                <div className="text-3xl font-black text-white tracking-tight">
+                  {stats ? Number(stats.totalViews).toLocaleString() : 'N/A'}
+                </div>
+                <div className="mt-2 text-[11px] text-slate-400">
+                  Aggregated public streaming views
+                </div>
+              </div>
+
+              <div className="bg-[#131722]/80 border border-white/10 rounded-2xl p-5 relative overflow-hidden">
+                <div className="flex items-center justify-between text-slate-400 mb-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider">Monetization Ad Clicks</span>
+                  <MousePointerClick className="w-4 h-4 text-amber-400" />
+                </div>
+                <div className="text-3xl font-black text-white tracking-tight">
+                  {stats ? Number(stats.adsRevenueClicks).toLocaleString() : 'N/A'}
+                </div>
+                <div className="mt-2 text-[11px] text-slate-400">
+                  Verified unlock task clicks
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Status Bar */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-[#131722]/50 border border-white/5 rounded-xl p-4 flex items-center justify-between">
                 <div>
-                  <label className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
-                    Username
-                  </label>
-                  <input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    required
-                    className="mt-1 w-full rounded-lg border border-white/10 bg-zinc-950 px-3 py-2 text-xs text-white focus:border-[#e50914] focus:outline-none"
-                  />
+                  <div className="text-xs text-slate-400 font-medium">Catalog Volume</div>
+                  <div className="text-xl font-bold text-white mt-0.5">
+                    {stats?.totalVideos ?? videosList.length} Videos
+                  </div>
                 </div>
+                <Film className="w-8 h-8 text-slate-600" />
+              </div>
 
+              <div className="bg-[#131722]/50 border border-white/5 rounded-xl p-4 flex items-center justify-between">
                 <div>
-                  <label className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
-                    Password
-                  </label>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="mt-1 w-full rounded-lg border border-white/10 bg-zinc-950 px-3 py-2 text-xs text-white focus:border-[#e50914] focus:outline-none"
-                  />
+                  <div className="text-xs text-slate-400 font-medium">Featured Hero Spots</div>
+                  <div className="text-xl font-bold text-white mt-0.5">
+                    {stats?.featuredVideos ?? videosList.filter((v) => v.isFeatured).length} Active
+                  </div>
                 </div>
+                <Sparkles className="w-8 h-8 text-amber-500/50" />
+              </div>
 
-                <div className="rounded border border-amber-500/20 bg-amber-500/10 p-2 text-[11px] text-amber-300">
-                  Default credentials: <span className="font-mono font-semibold">admin</span> / <span className="font-mono font-semibold">virallinkhub2026!</span>
+              <div className="bg-[#131722]/50 border border-white/5 rounded-xl p-4 flex items-center justify-between">
+                <div>
+                  <div className="text-xs text-slate-400 font-medium">Database Layer</div>
+                  <div className="text-xl font-bold text-white mt-0.5 flex items-center gap-2">
+                    <Database className="w-4 h-4 text-emerald-400" />
+                    <span>{appMode === 'production' ? 'MongoDB Atlas' : 'Demo Memory'}</span>
+                  </div>
                 </div>
-
-                <button
-                  type="submit"
-                  disabled={isLoggingIn}
-                  className="w-full rounded-lg bg-[#e50914] py-2 text-xs font-semibold text-white shadow-lg transition-transform hover:bg-[#c70812] active:scale-[0.98] disabled:opacity-50"
+                <span
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                    appMode === 'production'
+                      ? 'bg-emerald-500/20 text-emerald-300'
+                      : 'bg-amber-500/20 text-amber-300'
+                  }`}
                 >
-                  {isLoggingIn ? 'Authenticating...' : 'Sign In with JWT'}
+                  {appMode.toUpperCase()}
+                </span>
+              </div>
+            </div>
+
+            {/* Recent Audit & System Stream */}
+            <div className="bg-[#131722]/80 border border-white/10 rounded-2xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-[#e50914]" />
+                  <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                    Recent Activity Stream
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setActiveTab('audit')}
+                  className="text-xs text-slate-400 hover:text-white transition flex items-center gap-1"
+                >
+                  <span>View All Logs</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
                 </button>
-              </form>
-            </div>
-          </div>
-        ) : (
-          /* Authenticated Dashboard View */
-          <div className="flex flex-1 flex-col overflow-hidden">
-            {/* Navigation Tabs */}
-            <div className="flex border-b border-white/10 bg-zinc-900/40 px-5">
-              <button
-                onClick={() => setActiveTab('analytics')}
-                className={`flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-xs font-medium transition-colors ${
-                  activeTab === 'analytics'
-                    ? 'border-[#e50914] text-white font-semibold'
-                    : 'border-transparent text-zinc-400 hover:text-zinc-200'
-                }`}
-              >
-                <Activity className="h-3.5 w-3.5 text-[#e50914]" />
-                <span>Live Analytics</span>
-              </button>
+              </div>
 
-              <button
-                onClick={() => setActiveTab('videos')}
-                className={`flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-xs font-medium transition-colors ${
-                  activeTab === 'videos'
-                    ? 'border-[#e50914] text-white font-semibold'
-                    : 'border-transparent text-zinc-400 hover:text-zinc-200'
-                }`}
-              >
-                <Film className="h-3.5 w-3.5 text-emerald-400" />
-                <span>Video Catalog ({allVideos.length})</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('settings')}
-                className={`flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-xs font-medium transition-colors ${
-                  activeTab === 'settings'
-                    ? 'border-[#e50914] text-white font-semibold'
-                    : 'border-transparent text-zinc-400 hover:text-zinc-200'
-                }`}
-              >
-                <SettingsIcon className="h-3.5 w-3.5 text-amber-400" />
-                <span>App Settings & Ads</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('api-console')}
-                className={`flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-xs font-medium transition-colors ${
-                  activeTab === 'api-console'
-                    ? 'border-[#e50914] text-white font-semibold'
-                    : 'border-transparent text-zinc-400 hover:text-zinc-200'
-                }`}
-              >
-                <Terminal className="h-3.5 w-3.5 text-blue-400" />
-                <span>API Tester</span>
-              </button>
-            </div>
-
-            {/* Tab Body */}
-            <div className="flex-1 overflow-y-auto p-5">
-              {/* TAB 1: LIVE ANALYTICS */}
-              {activeTab === 'analytics' && (
-                <div className="space-y-6">
-                  {/* KPI Cards Grid */}
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-                    {/* Live Active Users (last 5 min window) */}
-                    <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider">
-                          Live Active (5m)
-                        </span>
-                        <span className="relative flex h-2.5 w-2.5">
-                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                          <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
-                        </span>
-                      </div>
-                      <div className="mt-2 text-2xl sm:text-3xl font-extrabold text-white font-mono tabular-nums">
-                        {stats?.liveActiveUsers ?? 1}
-                      </div>
-                      <p className="mt-1 text-[10px] text-zinc-400">
-                        Sliding window sessions
-                      </p>
-                    </div>
-
-                    {/* Total Unique Visitors */}
-                    <div className="rounded-xl border border-white/10 bg-zinc-900/60 p-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
-                          Unique Telegram IDs
-                        </span>
-                        <Users className="h-4 w-4 text-blue-400" />
-                      </div>
-                      <div className="mt-2 text-2xl sm:text-3xl font-extrabold text-white font-mono tabular-nums">
-                        {stats?.totalUniqueVisitors?.toLocaleString() ?? 0}
-                      </div>
-                      <p className="mt-1 text-[10px] text-zinc-400">
-                        Deduplicated user IDs
-                      </p>
-                    </div>
-
-                    {/* Total Views */}
-                    <div className="rounded-xl border border-white/10 bg-zinc-900/60 p-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
-                          Total Page Views
-                        </span>
-                        <Eye className="h-4 w-4 text-amber-400" />
-                      </div>
-                      <div className="mt-2 text-2xl sm:text-3xl font-extrabold text-white font-mono tabular-nums">
-                        {stats?.totalViews?.toLocaleString() ?? 0}
-                      </div>
-                      <p className="mt-1 text-[10px] text-zinc-400">
-                        Incremented on every request
-                      </p>
-                    </div>
-
-                    {/* Ads Revenue Clicks */}
-                    <div className="rounded-xl border border-white/10 bg-zinc-900/60 p-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
-                          Ad Revenue Clicks
-                        </span>
-                        <MousePointerClick className="h-4 w-4 text-[#e50914]" />
-                      </div>
-                      <div className="mt-2 text-2xl sm:text-3xl font-extrabold text-white font-mono tabular-nums">
-                        {stats?.adsRevenueClicks?.toLocaleString() ?? 0}
-                      </div>
-                      <p className="mt-1 text-[10px] text-zinc-400">
-                        Direct CPM verification clicks
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Audit Logs Table */}
-                  <div className="space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-300">
-                        Recent Telegram Request Logs (Middleware Capture)
-                      </h3>
-                      <button
-                        onClick={fetchStats}
-                        disabled={isLoadingStats}
-                        className="flex items-center gap-1 text-[11px] text-zinc-400 hover:text-white"
-                      >
-                        <RefreshCw className={`h-3 w-3 ${isLoadingStats ? 'animate-spin' : ''}`} />
-                        <span>Refresh</span>
-                      </button>
-                    </div>
-
-                    <div className="overflow-x-auto rounded-lg border border-white/10 bg-zinc-950/60">
-                      <table className="w-full text-left text-xs text-zinc-300">
-                        <thead className="border-b border-white/10 bg-zinc-900/60 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
-                          <tr>
-                            <th className="px-3.5 py-2.5">Telegram User ID</th>
-                            <th className="px-3.5 py-2.5">IP Address</th>
-                            <th className="px-3.5 py-2.5">Path</th>
-                            <th className="px-3.5 py-2.5">Client User-Agent</th>
-                            <th className="px-3.5 py-2.5">Timestamp</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-white/5 font-mono text-[11px]">
-                          {stats?.recentLogs && stats.recentLogs.length > 0 ? (
-                            stats.recentLogs.map((log) => (
-                              <tr key={log.id} className="hover:bg-white/5 transition-colors">
-                                <td className="px-3.5 py-2 text-[#e50914] font-semibold">
-                                  {log.userId}
-                                </td>
-                                <td className="px-3.5 py-2 text-zinc-300">{log.ip}</td>
-                                <td className="px-3.5 py-2 text-emerald-400">{log.path}</td>
-                                <td className="px-3.5 py-2 text-zinc-400 truncate max-w-[200px]" title={log.userAgent}>
-                                  {log.userAgent}
-                                </td>
-                                <td className="px-3.5 py-2 text-zinc-500 whitespace-nowrap">
-                                  {new Date(log.timestamp).toLocaleTimeString()}
-                                </td>
-                              </tr>
-                            ))
-                          ) : (
-                            <tr>
-                              <td colSpan={5} className="px-3.5 py-4 text-center text-zinc-500">
-                                No visitor logs recorded yet.
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* TAB 2: VIDEOS CRUD */}
-              {activeTab === 'videos' && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-sm font-bold text-white">Video Catalog Management</h3>
-                      <p className="text-xs text-zinc-400">
-                        Configure Terabox links, categories, and custom sponsor ad links.
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => handleOpenVideoModal()}
-                      className="flex items-center gap-1.5 rounded-lg bg-[#e50914] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#c70812] active:scale-95"
+              <div className="space-y-2">
+                {stats?.recentLogs && stats.recentLogs.length > 0 ? (
+                  stats.recentLogs.slice(0, 6).map((log) => (
+                    <div
+                      key={log.id}
+                      className="p-3 bg-[#181d2c]/60 border border-white/5 rounded-xl flex items-center justify-between text-xs"
                     >
-                      <Plus className="h-3.5 w-3.5" />
-                      <span>Add New Video</span>
-                    </button>
-                  </div>
-
-                  <div className="overflow-x-auto rounded-lg border border-white/10 bg-zinc-950/60">
-                    <table className="w-full text-left text-xs text-zinc-300">
-                      <thead className="border-b border-white/10 bg-zinc-900/60 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
-                        <tr>
-                          <th className="px-3.5 py-2.5">Title</th>
-                          <th className="px-3.5 py-2.5">Category</th>
-                          <th className="px-3.5 py-2.5">Quality / Size</th>
-                          <th className="px-3.5 py-2.5">Required Ads</th>
-                          <th className="px-3.5 py-2.5">Views</th>
-                          <th className="px-3.5 py-2.5">Featured</th>
-                          <th className="px-3.5 py-2.5 text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/5 text-xs">
-                        {allVideos.map((video) => (
-                          <tr key={video._id} className="hover:bg-white/5 transition-colors">
-                            <td className="px-3.5 py-2.5 font-medium text-white max-w-[200px] truncate">
-                              {video.title}
-                            </td>
-                            <td className="px-3.5 py-2.5 text-zinc-400">{video.category}</td>
-                            <td className="px-3.5 py-2.5 text-zinc-400 font-mono text-[11px]">
-                              {video.quality || '1080p'} · {video.fileSize || '1.4 GB'}
-                            </td>
-                            <td className="px-3.5 py-2.5 text-amber-400 font-mono">
-                              {video.requiredAdsCount} Ads
-                            </td>
-                            <td className="px-3.5 py-2.5 font-mono text-zinc-400 tabular-nums">
-                              {video.viewsCount.toLocaleString()}
-                            </td>
-                            <td className="px-3.5 py-2.5">
-                              {video.isFeatured ? (
-                                <span className="text-[10px] text-emerald-400 font-bold uppercase">
-                                  Featured
-                                </span>
-                              ) : (
-                                <span className="text-[10px] text-zinc-600">-</span>
-                              )}
-                            </td>
-                            <td className="px-3.5 py-2.5 text-right">
-                              <div className="flex items-center justify-end gap-1.5">
-                                <button
-                                  onClick={() => handleOpenVideoModal(video)}
-                                  className="rounded p-1 text-zinc-400 hover:bg-white/10 hover:text-white"
-                                  title="Edit"
-                                >
-                                  <Edit2 className="h-3.5 w-3.5" />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteVideo(video._id)}
-                                  className="rounded p-1 text-red-400 hover:bg-red-500/20 hover:text-red-300"
-                                  title="Delete"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* TAB 3: APP SETTINGS */}
-              {activeTab === 'settings' && (
-                <div className="max-w-2xl space-y-6">
-                  <div>
-                    <h3 className="text-sm font-bold text-white">Dynamic Application Settings</h3>
-                    <p className="text-xs text-zinc-400">
-                      Update runtime branding, toggle maintenance mode, and adjust monetization CPM links.
-                    </p>
-                  </div>
-
-                  {settingsSuccess && (
-                    <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-950/20 px-3.5 py-2.5 text-xs text-emerald-300">
-                      <CheckCircle className="h-4 w-4" />
-                      <span>Settings updated successfully across all clients!</span>
-                    </div>
-                  )}
-
-                  <form onSubmit={handleSaveSettings} className="space-y-4">
-                    {/* App Name */}
-                    <div>
-                      <label className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
-                        App Name
-                      </label>
-                      <input
-                        type="text"
-                        value={settingsForm.appName}
-                        onChange={(e) =>
-                          setSettingsForm({ ...settingsForm, appName: e.target.value })
-                        }
-                        required
-                        className="mt-1 w-full rounded-lg border border-white/10 bg-zinc-950 px-3 py-2 text-xs text-white focus:border-[#e50914] focus:outline-none"
-                      />
-                    </div>
-
-                    {/* Maintenance Mode Toggle */}
-                    <div className="flex items-center justify-between rounded-lg border border-white/10 bg-zinc-900/60 p-3.5">
-                      <div>
-                        <div className="text-xs font-semibold text-white">Maintenance Mode</div>
-                        <div className="text-[11px] text-zinc-400">
-                          When enabled, non-admin visitors will see an official maintenance screen.
+                      <div className="flex items-center gap-3">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                        <div>
+                          <span className="font-semibold text-white">{log.userId}</span>
+                          <span className="text-slate-400 ml-2 font-mono">{log.path}</span>
                         </div>
                       </div>
-                      <label className="relative inline-flex cursor-pointer items-center">
-                        <input
-                          type="checkbox"
-                          checked={settingsForm.maintenanceMode}
-                          onChange={(e) =>
-                            setSettingsForm({
-                              ...settingsForm,
-                              maintenanceMode: e.target.checked,
-                            })
-                          }
-                          className="peer sr-only"
-                        />
-                        <div className="h-6 w-11 rounded-full bg-zinc-800 peer-checked:bg-[#e50914] peer-focus:outline-none after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full"></div>
-                      </label>
+                      <div className="text-slate-500 text-[11px] font-mono">
+                        {new Date(log.timestamp).toLocaleTimeString()}
+                      </div>
                     </div>
-
-                    {/* Global Ad Link */}
-                    <div>
-                      <label className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
-                        Global Ad Link (Monetag / Adsterra / CPM URL)
-                      </label>
-                      <input
-                        type="url"
-                        value={settingsForm.globalAdLink}
-                        onChange={(e) =>
-                          setSettingsForm({ ...settingsForm, globalAdLink: e.target.value })
-                        }
-                        required
-                        className="mt-1 w-full rounded-lg border border-white/10 bg-zinc-950 px-3 py-2 text-xs text-white focus:border-[#e50914] focus:outline-none font-mono"
-                      />
-                    </div>
-
-                    {/* Default Ads Required */}
-                    <div>
-                      <label className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
-                        Default Sponsor Ads Required to Unlock
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        max="10"
-                        value={settingsForm.defaultAdsRequired}
-                        onChange={(e) =>
-                          setSettingsForm({
-                            ...settingsForm,
-                            defaultAdsRequired: parseInt(e.target.value) || 0,
-                          })
-                        }
-                        className="mt-1 w-full rounded-lg border border-white/10 bg-zinc-950 px-3 py-2 text-xs text-white focus:border-[#e50914] focus:outline-none"
-                      />
-                    </div>
-
-                    {/* Announcement Banner Text */}
-                    <div>
-                      <label className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
-                        Announcement Banner Text
-                      </label>
-                      <input
-                        type="text"
-                        value={settingsForm.announcementBannerText}
-                        onChange={(e) =>
-                          setSettingsForm({
-                            ...settingsForm,
-                            announcementBannerText: e.target.value,
-                          })
-                        }
-                        className="mt-1 w-full rounded-lg border border-white/10 bg-zinc-950 px-3 py-2 text-xs text-white focus:border-[#e50914] focus:outline-none"
-                      />
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={isSavingSettings}
-                      className="rounded-lg bg-[#e50914] px-5 py-2 text-xs font-semibold text-white shadow hover:bg-[#c70812] active:scale-95 disabled:opacity-50"
-                    >
-                      {isSavingSettings ? 'Saving...' : 'Save Settings'}
-                    </button>
-                  </form>
-                </div>
-              )}
-
-              {/* TAB 4: API TESTER CONSOLE */}
-              {activeTab === 'api-console' && (
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-sm font-bold text-white">Interactive API Endpoint Explorer</h3>
-                    <p className="text-xs text-zinc-400">
-                      Execute real HTTP queries against all requirements directly and view response payloads.
-                    </p>
+                  ))
+                ) : (
+                  <div className="py-8 text-center text-slate-500 text-xs">
+                    No activity logs recorded yet.
                   </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={() => handleTestEndpoint('/api/v1/app-config', 'GET')}
-                      className="rounded-lg border border-white/10 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-200 hover:border-white/20 hover:bg-zinc-800"
-                    >
-                      GET /api/v1/app-config
-                    </button>
-                    <button
-                      onClick={() => handleTestEndpoint('/api/v1/movies', 'GET')}
-                      className="rounded-lg border border-white/10 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-200 hover:border-white/20 hover:bg-zinc-800"
-                    >
-                      GET /api/v1/movies
-                    </button>
-                    <button
-                      onClick={() =>
-                        handleTestEndpoint('/api/v1/analytics/ping', 'POST', {
-                          userId: '108492041',
-                        })
-                      }
-                      className="rounded-lg border border-emerald-500/30 bg-emerald-950/20 px-3 py-1.5 text-xs text-emerald-300 hover:bg-emerald-950/40"
-                    >
-                      POST /api/v1/analytics/ping
-                    </button>
-                    <button
-                      onClick={() => handleTestEndpoint('/api/v1/admin/stats', 'GET')}
-                      className="rounded-lg border border-amber-500/30 bg-amber-950/20 px-3 py-1.5 text-xs text-amber-300 hover:bg-amber-950/40"
-                    >
-                      GET /api/v1/admin/stats (JWT)
-                    </button>
-                  </div>
-
-                  {/* Result Terminal Box */}
-                  <div className="rounded-xl border border-white/10 bg-black/80 p-4 font-mono text-xs">
-                    <div className="mb-2 flex items-center justify-between border-b border-white/10 pb-2 text-[11px] text-zinc-400">
-                      <span>{apiConsoleResult ? apiConsoleResult.endpoint : 'Console Idle'}</span>
-                      {apiConsoleResult && (
-                        <span
-                          className={`rounded px-1.5 py-0.5 font-bold ${
-                            apiConsoleResult.status === 200
-                              ? 'bg-emerald-500/20 text-emerald-400'
-                              : 'bg-red-500/20 text-red-400'
-                          }`}
-                        >
-                          Status {apiConsoleResult.status}
-                        </span>
-                      )}
-                    </div>
-
-                    <pre className="max-h-[300px] overflow-y-auto text-zinc-300 whitespace-pre-wrap">
-                      {isLoadingConsole
-                        ? 'Sending request...'
-                        : apiConsoleResult
-                        ? JSON.stringify(apiConsoleResult.data, null, 2)
-                        : '// Click any test button above to execute endpoint query'}
-                    </pre>
-                  </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         )}
 
-        {/* Video Create/Edit Submodal */}
-        {videoModalOpen && (
-          <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <div className="w-full max-w-lg overflow-hidden rounded-xl border border-white/10 bg-[#141722] p-5 shadow-2xl">
-              <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                <h4 className="text-sm font-bold text-white">
-                  {editingVideoId ? 'Edit Video Link' : 'Add New Viral Terabox Video'}
-                </h4>
-                <button
-                  onClick={() => setVideoModalOpen(false)}
-                  className="rounded p-1 text-zinc-400 hover:text-white"
+        {/* ------------------------------------------------------------- */}
+        {/* TAB 2: VIDEO CATALOG                                          */}
+        {/* ------------------------------------------------------------- */}
+        {activeTab === 'videos' && (
+          <div className="space-y-6">
+            {/* Action Bar: Search, Filters, Add Button */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-[#131722]/80 border border-white/10 rounded-2xl p-4">
+              <div className="flex items-center gap-3 flex-1">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={videoSearchQuery}
+                    onChange={(e) => setVideoSearchQuery(e.target.value)}
+                    placeholder="Search by title, tags, or description..."
+                    className="w-full bg-[#181d2c] border border-white/10 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-[#e50914] transition"
+                  />
+                </div>
+
+                <select
+                  value={videoCategoryFilter}
+                  onChange={(e) => setVideoCategoryFilter(e.target.value)}
+                  className="bg-[#181d2c] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#e50914] transition"
                 >
-                  <X className="h-4 w-4" />
+                  <option value="All">All Categories</option>
+                  <option value="Trending">Trending</option>
+                  <option value="Action">Action</option>
+                  <option value="Anime">Anime</option>
+                  <option value="Viral Clips">Viral Clips</option>
+                  <option value="VIP Cloud">VIP Cloud</option>
+                  <option value="Recommended">Recommended</option>
+                </select>
+
+                <button
+                  onClick={() =>
+                    setVideoFeaturedFilter(
+                      videoFeaturedFilter === null ? true : videoFeaturedFilter ? false : null
+                    )
+                  }
+                  className={`px-3 py-2 rounded-xl text-xs font-semibold transition border ${
+                    videoFeaturedFilter === true
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                      : videoFeaturedFilter === false
+                      ? 'bg-slate-800 text-slate-300 border-white/10'
+                      : 'bg-[#181d2c] text-slate-400 border-white/5'
+                  }`}
+                  title="Filter Featured"
+                >
+                  ★ {videoFeaturedFilter === true ? 'Featured Only' : videoFeaturedFilter === false ? 'Standard' : 'All'}
                 </button>
               </div>
 
-              <form onSubmit={handleSaveVideo} className="mt-4 space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+              <button
+                onClick={() => handleOpenVideoModal()}
+                className="px-4 py-2.5 bg-gradient-to-r from-[#e50914] to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl text-xs font-bold tracking-wide shadow-md shadow-red-600/30 transition flex items-center justify-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Upload New Video</span>
+              </button>
+            </div>
+
+            {/* Video List Table */}
+            <div className="bg-[#131722]/80 border border-white/10 rounded-2xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-[#181d2c] text-slate-400 uppercase tracking-wider font-semibold border-b border-white/5">
+                    <tr>
+                      <th className="py-3.5 px-4">Video Asset</th>
+                      <th className="py-3.5 px-4">Category</th>
+                      <th className="py-3.5 px-4">Views</th>
+                      <th className="py-3.5 px-4">Quality & Size</th>
+                      <th className="py-3.5 px-4">Featured</th>
+                      <th className="py-3.5 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5 text-slate-300">
+                    {isLoadingVideos ? (
+                      <tr>
+                        <td colSpan={6} className="py-12 text-center text-slate-500">
+                          <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-[#e50914]" />
+                          <span>Loading Video Catalog...</span>
+                        </td>
+                      </tr>
+                    ) : filteredVideos.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-12 text-center text-slate-500">
+                          No videos match your current filter.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredVideos.map((video) => (
+                        <tr key={video._id} className="hover:bg-white/[0.02] transition">
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-14 h-9 rounded-lg bg-black/40 overflow-hidden relative border border-white/10 shrink-0">
+                                {video.posterUrl ? (
+                                  <img
+                                    src={video.posterUrl}
+                                    alt={video.title}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <Film className="w-5 h-5 m-auto text-slate-600" />
+                                )}
+                              </div>
+                              <div className="max-w-xs">
+                                <div className="font-bold text-white truncate">{video.title}</div>
+                                <div className="text-[11px] text-slate-400 truncate">
+                                  {video.description || 'No description provided'}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="px-2.5 py-1 rounded-md bg-white/5 border border-white/10 text-slate-300 text-[11px]">
+                              {video.category}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 font-mono font-medium text-slate-300">
+                            {Number(video.viewsCount || 0).toLocaleString()}
+                          </td>
+                          <td className="py-3 px-4 text-slate-400">
+                            <span className="font-semibold text-white">{video.quality || '1080p HD'}</span>
+                            <span className="ml-1 text-[11px]">({video.fileSize || '1.4 GB'})</span>
+                          </td>
+                          <td className="py-3 px-4">
+                            {video.isFeatured ? (
+                              <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold">
+                                FEATURED
+                              </span>
+                            ) : (
+                              <span className="text-slate-600">—</span>
+                            )}
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => handleOpenVideoModal(video)}
+                                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition"
+                                title="Edit Video"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => setDeleteConfirmVideo(video)}
+                                className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 transition"
+                                title="Delete Video"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ------------------------------------------------------------- */}
+        {/* TAB 3: SETTINGS & MONETIZATION                                */}
+        {/* ------------------------------------------------------------- */}
+        {activeTab === 'settings' && (
+          <div className="max-w-4xl bg-[#131722]/80 border border-white/10 rounded-2xl p-6 sm:p-8">
+            <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/5">
+              <div>
+                <h3 className="text-lg font-bold text-white tracking-tight">
+                  System Settings & Ad Monetization
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Configure direct sponsor ad links, maintenance switches, and Telegram parameters.
+                </p>
+              </div>
+
+              {settingsSuccess && (
+                <div className="px-3 py-1.5 bg-emerald-500/15 border border-emerald-500/30 rounded-lg text-emerald-300 text-xs font-semibold flex items-center gap-1.5">
+                  <CheckCircle className="w-4 h-4" />
+                  <span>Settings Saved</span>
+                </div>
+              )}
+            </div>
+
+            {settingsError && (
+              <div className="mb-6 p-3.5 bg-red-500/15 border border-red-500/30 rounded-xl text-red-200 text-xs flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+                <span>{settingsError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveSettings} className="space-y-6">
+              {/* Application Name & Maintenance */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[11px] font-semibold text-zinc-400 uppercase">Title</label>
-                  <input
-                    type="text"
-                    value={videoForm.title}
-                    onChange={(e) => setVideoForm({ ...videoForm, title: e.target.value })}
-                    required
-                    className="mt-1 w-full rounded border border-white/10 bg-zinc-950 px-2.5 py-1.5 text-xs text-white focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-semibold text-zinc-400 uppercase">Description</label>
-                  <textarea
-                    rows={2}
-                    value={videoForm.description}
-                    onChange={(e) => setVideoForm({ ...videoForm, description: e.target.value })}
-                    className="mt-1 w-full rounded border border-white/10 bg-zinc-950 px-2.5 py-1.5 text-xs text-white focus:outline-none"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[11px] font-semibold text-zinc-400 uppercase">Category</label>
-                    <select
-                      value={videoForm.category}
-                      onChange={(e) => setVideoForm({ ...videoForm, category: e.target.value })}
-                      className="mt-1 w-full rounded border border-white/10 bg-zinc-950 px-2.5 py-1.5 text-xs text-white focus:outline-none"
-                    >
-                      <option value="Trending">Trending</option>
-                      <option value="Terabox Cloud">Terabox Cloud</option>
-                      <option value="Action">Action</option>
-                      <option value="Viral Clips">Viral Clips</option>
-                      <option value="Anime">Anime</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-[11px] font-semibold text-zinc-400 uppercase">Required Ads</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="10"
-                      value={videoForm.requiredAdsCount}
-                      onChange={(e) =>
-                        setVideoForm({
-                          ...videoForm,
-                          requiredAdsCount: parseInt(e.target.value) || 0,
-                        })
-                      }
-                      className="mt-1 w-full rounded border border-white/10 bg-zinc-950 px-2.5 py-1.5 text-xs text-white focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-semibold text-zinc-400 uppercase">Target Link (Terabox / Stream)</label>
-                  <input
-                    type="url"
-                    value={videoForm.targetLink}
-                    onChange={(e) => setVideoForm({ ...videoForm, targetLink: e.target.value })}
-                    required
-                    className="mt-1 w-full rounded border border-white/10 bg-zinc-950 px-2.5 py-1.5 text-xs text-white focus:outline-none font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-semibold text-zinc-400 uppercase">Poster Image URL</label>
-                  <input
-                    type="text"
-                    value={videoForm.posterUrl}
-                    onChange={(e) => setVideoForm({ ...videoForm, posterUrl: e.target.value })}
-                    required
-                    className="mt-1 w-full rounded border border-white/10 bg-zinc-950 px-2.5 py-1.5 text-xs text-white focus:outline-none font-mono text-[11px]"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[11px] font-semibold text-zinc-400 uppercase">Quality</label>
-                    <input
-                      type="text"
-                      value={videoForm.quality}
-                      onChange={(e) => setVideoForm({ ...videoForm, quality: e.target.value })}
-                      className="mt-1 w-full rounded border border-white/10 bg-zinc-950 px-2.5 py-1.5 text-xs text-white focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[11px] font-semibold text-zinc-400 uppercase">File Size</label>
-                    <input
-                      type="text"
-                      value={videoForm.fileSize}
-                      onChange={(e) => setVideoForm({ ...videoForm, fileSize: e.target.value })}
-                      className="mt-1 w-full rounded border border-white/10 bg-zinc-950 px-2.5 py-1.5 text-xs text-white focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 pt-1">
-                  <input
-                    type="checkbox"
-                    id="isFeatured"
-                    checked={videoForm.isFeatured}
-                    onChange={(e) => setVideoForm({ ...videoForm, isFeatured: e.target.checked })}
-                    className="rounded border-zinc-700 bg-zinc-900 text-[#e50914]"
-                  />
-                  <label htmlFor="isFeatured" className="text-xs text-zinc-300">
-                    Feature on Hero Carousel
+                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                    Application Name
                   </label>
+                  <input
+                    type="text"
+                    value={settingsForm.appName}
+                    onChange={(e) => setSettingsForm({ ...settingsForm, appName: e.target.value })}
+                    className="w-full bg-[#181d2c] border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#e50914] transition"
+                  />
                 </div>
 
-                <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                    Maintenance Mode
+                  </label>
                   <button
                     type="button"
-                    onClick={() => setVideoModalOpen(false)}
-                    className="rounded px-3 py-1.5 text-xs text-zinc-400 hover:text-white"
+                    onClick={() =>
+                      setSettingsForm({ ...settingsForm, maintenanceMode: !settingsForm.maintenanceMode })
+                    }
+                    className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-between border ${
+                      settingsForm.maintenanceMode
+                        ? 'bg-red-500/20 border-red-500/40 text-red-300'
+                        : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                    }`}
                   >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSavingVideo}
-                    className="rounded bg-[#e50914] px-4 py-1.5 text-xs font-semibold text-white hover:bg-[#c70812] active:scale-95"
-                  >
-                    {isSavingVideo ? 'Saving...' : 'Save Video'}
+                    <span>{settingsForm.maintenanceMode ? 'ACTIVE (Hub Locked)' : 'DISABLED (Hub Operational)'}</span>
+                    <span className={`w-2.5 h-2.5 rounded-full ${settingsForm.maintenanceMode ? 'bg-red-500' : 'bg-emerald-500'}`} />
                   </button>
                 </div>
-              </form>
+              </div>
+
+              {/* Announcement Banner */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                  Announcement Banner Headline
+                </label>
+                <input
+                  type="text"
+                  value={settingsForm.announcementBannerText}
+                  onChange={(e) =>
+                    setSettingsForm({ ...settingsForm, announcementBannerText: e.target.value })
+                  }
+                  className="w-full bg-[#181d2c] border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#e50914] transition"
+                />
+              </div>
+
+              {/* Monetization Direct Links */}
+              <div className="space-y-4 pt-4 border-t border-white/5">
+                <h4 className="text-xs font-bold text-[#e50914] uppercase tracking-wider">
+                  Ad Monetization Gateways
+                </h4>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                      Primary Direct Sponsor Link
+                    </label>
+                    <input
+                      type="url"
+                      value={settingsForm.primaryDirectLink}
+                      onChange={(e) =>
+                        setSettingsForm({ ...settingsForm, primaryDirectLink: e.target.value })
+                      }
+                      placeholder="https://monetag.com/direct?zone=..."
+                      className="w-full bg-[#181d2c] border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#e50914] transition font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                      Secondary Fallback Ad Link
+                    </label>
+                    <input
+                      type="url"
+                      value={settingsForm.secondaryDirectLink || ''}
+                      onChange={(e) =>
+                        setSettingsForm({ ...settingsForm, secondaryDirectLink: e.target.value })
+                      }
+                      placeholder="https://adsterra.com/direct?zone=..."
+                      className="w-full bg-[#181d2c] border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#e50914] transition font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                    Default Ads Required Before Link Unlock ({settingsForm.defaultAdsRequired} task/s)
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="5"
+                    step="1"
+                    value={settingsForm.defaultAdsRequired}
+                    onChange={(e) =>
+                      setSettingsForm({ ...settingsForm, defaultAdsRequired: Number(e.target.value) })
+                    }
+                    className="w-full accent-[#e50914]"
+                  />
+                  <div className="flex justify-between text-[10px] text-slate-500 font-mono mt-1">
+                    <span>0 (Free Direct)</span>
+                    <span>1 Ad</span>
+                    <span>2 Ads (Recommended)</span>
+                    <span>3 Ads</span>
+                    <span>4 Ads</span>
+                    <span>5 Ads</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Telegram Channel Integration */}
+              <div className="space-y-4 pt-4 border-t border-white/5">
+                <h4 className="text-xs font-bold text-sky-400 uppercase tracking-wider">
+                  Telegram Integration
+                </h4>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                      Official Channel URL
+                    </label>
+                    <input
+                      type="url"
+                      value={settingsForm.telegramChannelUrl}
+                      onChange={(e) =>
+                        setSettingsForm({ ...settingsForm, telegramChannelUrl: e.target.value })
+                      }
+                      className="w-full bg-[#181d2c] border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#e50914] transition font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                      Force Channel Membership
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSettingsForm({
+                          ...settingsForm,
+                          forceJoinChannel: !settingsForm.forceJoinChannel,
+                        })
+                      }
+                      className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-between border ${
+                        settingsForm.forceJoinChannel
+                          ? 'bg-sky-500/20 border-sky-500/40 text-sky-300'
+                          : 'bg-slate-800 border-white/10 text-slate-400'
+                      }`}
+                    >
+                      <span>{settingsForm.forceJoinChannel ? 'Forced Subscription Required' : 'Optional'}</span>
+                      <span className={`w-2.5 h-2.5 rounded-full ${settingsForm.forceJoinChannel ? 'bg-sky-400' : 'bg-slate-600'}`} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-white/5 flex justify-end">
+                <button
+                  type="submit"
+                  disabled={isSavingSettings}
+                  className="px-6 py-3 bg-gradient-to-r from-[#e50914] to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl text-xs font-bold tracking-wide shadow-lg shadow-red-600/30 transition flex items-center gap-2 disabled:opacity-50"
+                >
+                  {isSavingSettings ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Saving System Settings...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-4 h-4" />
+                      <span>Apply Changes to Production</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* ------------------------------------------------------------- */}
+        {/* TAB 4: AUDIT TRAIL                                            */}
+        {/* ------------------------------------------------------------- */}
+        {activeTab === 'audit' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between bg-[#131722]/80 border border-white/10 rounded-2xl p-4">
+              <div>
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                  Security Audit Logs ({auditLogs.length})
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Tamper-resistant audit log of administrator operations, auth events, and setting updates.
+                </p>
+              </div>
+              <button
+                onClick={fetchAuditLogsList}
+                className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-medium flex items-center gap-1.5 transition"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isLoadingAudit ? 'animate-spin' : ''}`} />
+                <span>Refresh Log</span>
+              </button>
+            </div>
+
+            <div className="bg-[#131722]/80 border border-white/10 rounded-2xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-[#181d2c] text-slate-400 uppercase tracking-wider font-semibold border-b border-white/5">
+                    <tr>
+                      <th className="py-3 px-4">Timestamp</th>
+                      <th className="py-3 px-4">Operator</th>
+                      <th className="py-3 px-4">Action</th>
+                      <th className="py-3 px-4">Target Resource</th>
+                      <th className="py-3 px-4">Client IP</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5 text-slate-300 font-mono text-[11px]">
+                    {isLoadingAudit ? (
+                      <tr>
+                        <td colSpan={5} className="py-10 text-center text-slate-500 font-sans">
+                          Loading audit records...
+                        </td>
+                      </tr>
+                    ) : auditLogs.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="py-10 text-center text-slate-500 font-sans">
+                          No audit events recorded yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      auditLogs.map((log) => (
+                        <tr key={log._id} className="hover:bg-white/[0.02] transition">
+                          <td className="py-3 px-4 text-slate-400">
+                            {new Date(log.createdAt).toLocaleString()}
+                          </td>
+                          <td className="py-3 px-4 text-white font-semibold">{log.admin}</td>
+                          <td className="py-3 px-4">
+                            <span className="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-slate-300 uppercase text-[10px]">
+                              {log.action}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-slate-300 font-sans">{log.target || '—'}</td>
+                          <td className="py-3 px-4 text-slate-500">{log.ip}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ------------------------------------------------------------- */}
+        {/* TAB 5: SYSTEM DIAGNOSTICS & API CONSOLE                       */}
+        {/* ------------------------------------------------------------- */}
+        {activeTab === 'api-console' && (
+          <div className="space-y-6">
+            {/* System Status Panel */}
+            <div className="bg-[#131722]/80 border border-white/10 rounded-2xl p-6">
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                <Shield className="w-4 h-4 text-emerald-400" />
+                <span>Production Security & Architecture Status</span>
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                <div className="p-4 bg-[#181d2c]/60 rounded-xl border border-white/5 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Application Mode:</span>
+                    <span className="font-bold text-white font-mono uppercase">{appMode}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Authentication Scheme:</span>
+                    <span className="font-bold text-emerald-400 font-mono">HttpOnly Cookie + JWT</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Session Cookie Name:</span>
+                    <span className="font-bold text-slate-300 font-mono">vlh_admin_session</span>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-[#181d2c]/60 rounded-xl border border-white/5 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Database Layer:</span>
+                    <span className="font-bold text-white font-mono">
+                      {appMode === 'production' ? 'MongoDB Mongoose Driver' : 'Isolated Demo Store'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Fail-Closed Safety Gate:</span>
+                    <span className="font-bold text-emerald-400 font-mono">Active</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Login Brute-Force Rate Limiter:</span>
+                    <span className="font-bold text-emerald-400 font-mono">Enabled (5 attempts / 15m)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* API Endpoint Tester */}
+            <div className="bg-[#131722]/80 border border-white/10 rounded-2xl p-6">
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                <Terminal className="w-4 h-4 text-[#e50914]" />
+                <span>Live Route Handler Diagnostic Tester</span>
+              </h3>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+                <button
+                  onClick={() => handleTestEndpoint('/api/v1/app-config', 'GET')}
+                  className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-left transition"
+                >
+                  <span className="text-[10px] font-bold text-emerald-400 block font-mono">GET</span>
+                  <span className="text-xs text-white font-medium">/api/v1/app-config</span>
+                </button>
+
+                <button
+                  onClick={() => handleTestEndpoint('/api/v1/movies', 'GET')}
+                  className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-left transition"
+                >
+                  <span className="text-[10px] font-bold text-emerald-400 block font-mono">GET</span>
+                  <span className="text-xs text-white font-medium">/api/v1/movies</span>
+                </button>
+
+                <button
+                  onClick={() =>
+                    handleTestEndpoint('/api/v1/analytics/ping', 'POST', { userId: 108492041 })
+                  }
+                  className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-left transition"
+                >
+                  <span className="text-[10px] font-bold text-sky-400 block font-mono">POST</span>
+                  <span className="text-xs text-white font-medium">/api/v1/analytics/ping</span>
+                </button>
+
+                <button
+                  onClick={() => handleTestEndpoint('/api/v1/admin/stats', 'GET')}
+                  className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-left transition"
+                >
+                  <span className="text-[10px] font-bold text-amber-400 block font-mono">GET (Auth)</span>
+                  <span className="text-xs text-white font-medium">/api/v1/admin/stats</span>
+                </button>
+              </div>
+
+              {isLoadingConsole && (
+                <div className="p-8 text-center text-slate-400 text-xs">
+                  <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-[#e50914]" />
+                  <span>Executing endpoint call...</span>
+                </div>
+              )}
+
+              {apiConsoleResult && (
+                <div className="mt-4 p-4 bg-[#0a0d14] rounded-xl border border-white/10 font-mono text-xs">
+                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10">
+                    <span className="text-slate-400">{apiConsoleResult.endpoint}</span>
+                    <span
+                      className={`font-bold ${
+                        apiConsoleResult.status >= 200 && apiConsoleResult.status < 300
+                          ? 'text-emerald-400'
+                          : 'text-red-400'
+                      }`}
+                    >
+                      HTTP {apiConsoleResult.status}
+                    </span>
+                  </div>
+                  <pre className="text-slate-300 max-h-60 overflow-y-auto scrollbar-none whitespace-pre-wrap">
+                    {JSON.stringify(apiConsoleResult.data, null, 2)}
+                  </pre>
+                </div>
+              )}
             </div>
           </div>
         )}
       </div>
+
+      {/* ------------------------------------------------------------- */}
+      {/* MODAL: ADD / EDIT VIDEO                                       */}
+      {/* ------------------------------------------------------------- */}
+      {videoModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
+          <div className="w-full max-w-xl bg-[#131722] border border-white/10 rounded-2xl p-6 shadow-2xl relative my-8">
+            <div className="flex items-center justify-between pb-4 mb-4 border-b border-white/10">
+              <h3 className="text-base font-bold text-white">
+                {editingVideoId ? 'Edit Video Catalog Asset' : 'Add New Video to Hub'}
+              </h3>
+              <button
+                onClick={() => setVideoModalOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {videoFormError && (
+              <div className="mb-4 p-3 bg-red-500/15 border border-red-500/30 rounded-xl text-red-200 text-xs flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+                <span>{videoFormError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveVideo} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Title *</label>
+                <input
+                  type="text"
+                  required
+                  value={videoForm.title}
+                  onChange={(e) => setVideoForm({ ...videoForm, title: e.target.value })}
+                  placeholder="e.g. Neon Protocol: Cyber Shadow"
+                  className="w-full bg-[#181d2c] border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-[#e50914] transition"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Description</label>
+                <textarea
+                  rows={2}
+                  value={videoForm.description}
+                  onChange={(e) => setVideoForm({ ...videoForm, description: e.target.value })}
+                  placeholder="Plot summary, release notes..."
+                  className="w-full bg-[#181d2c] border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-[#e50914] transition"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Category *</label>
+                  <select
+                    value={videoForm.category}
+                    onChange={(e) => setVideoForm({ ...videoForm, category: e.target.value })}
+                    className="w-full bg-[#181d2c] border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-[#e50914] transition"
+                  >
+                    <option value="Trending">Trending</option>
+                    <option value="Action">Action</option>
+                    <option value="Anime">Anime</option>
+                    <option value="Viral Clips">Viral Clips</option>
+                    <option value="VIP Cloud">VIP Cloud</option>
+                    <option value="Recommended">Recommended</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Stream Quality</label>
+                  <input
+                    type="text"
+                    value={videoForm.quality}
+                    onChange={(e) => setVideoForm({ ...videoForm, quality: e.target.value })}
+                    placeholder="4K Ultra HD / 1080p HD"
+                    className="w-full bg-[#181d2c] border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-[#e50914] transition"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Stream URL / Master Cloud Link *
+                </label>
+                <input
+                  type="url"
+                  required
+                  value={videoForm.streamUrl}
+                  onChange={(e) => setVideoForm({ ...videoForm, streamUrl: e.target.value })}
+                  placeholder="https://fastcdn.stream/v/sample"
+                  className="w-full bg-[#181d2c] border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-[#e50914] transition font-mono"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Poster URL *</label>
+                  <input
+                    type="text"
+                    required
+                    value={videoForm.posterUrl}
+                    onChange={(e) => setVideoForm({ ...videoForm, posterUrl: e.target.value })}
+                    placeholder="/images/hero_viral_cyberpunk.jpg"
+                    className="w-full bg-[#181d2c] border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-[#e50914] transition font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Banner Image URL</label>
+                  <input
+                    type="text"
+                    value={videoForm.bannerUrl}
+                    onChange={(e) => setVideoForm({ ...videoForm, bannerUrl: e.target.value })}
+                    placeholder="/images/hero_viral_cyberpunk.jpg"
+                    className="w-full bg-[#181d2c] border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-[#e50914] transition font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Direct Ad Link (Override)</label>
+                  <input
+                    type="url"
+                    value={videoForm.directAdLink}
+                    onChange={(e) => setVideoForm({ ...videoForm, directAdLink: e.target.value })}
+                    placeholder="https://monetag.com/direct?zone=..."
+                    className="w-full bg-[#181d2c] border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-[#e50914] transition font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">File Size</label>
+                  <input
+                    type="text"
+                    value={videoForm.fileSize}
+                    onChange={(e) => setVideoForm({ ...videoForm, fileSize: e.target.value })}
+                    placeholder="1.4 GB"
+                    className="w-full bg-[#181d2c] border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-[#e50914] transition"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Tags (Comma-separated)</label>
+                <input
+                  type="text"
+                  value={videoForm.tags}
+                  onChange={(e) => setVideoForm({ ...videoForm, tags: e.target.value })}
+                  placeholder="Action, Sci-Fi, Cyberpunk"
+                  className="w-full bg-[#181d2c] border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-[#e50914] transition"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <input
+                  type="checkbox"
+                  id="featured-checkbox"
+                  checked={videoForm.isFeatured}
+                  onChange={(e) => setVideoForm({ ...videoForm, isFeatured: e.target.checked })}
+                  className="rounded accent-[#e50914] w-4 h-4 cursor-pointer"
+                />
+                <label htmlFor="featured-checkbox" className="text-xs text-slate-300 font-semibold cursor-pointer">
+                  Feature this movie on the Public Hero Banner
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setVideoModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingVideo}
+                  className="px-5 py-2 bg-[#e50914] hover:bg-red-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5"
+                >
+                  {isSavingVideo ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : null}
+                  <span>{editingVideoId ? 'Save Video Changes' : 'Create Video'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* MODAL: DELETE CONFIRMATION                                    */}
+      {/* ------------------------------------------------------------- */}
+      {deleteConfirmVideo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-[#131722] border border-red-500/30 rounded-2xl p-6 shadow-2xl">
+            <div className="w-12 h-12 rounded-xl bg-red-500/20 text-red-400 flex items-center justify-center mb-4">
+              <Trash2 className="w-6 h-6" />
+            </div>
+
+            <h3 className="text-base font-bold text-white mb-2">Delete Video Asset?</h3>
+            <p className="text-xs text-slate-400 mb-4">
+              Are you sure you want to permanently delete{' '}
+              <span className="font-semibold text-white">&ldquo;{deleteConfirmVideo.title}&rdquo;</span>? This
+              action cannot be undone and will remove it from the public streaming catalog immediately.
+            </p>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmVideo(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingVideo}
+                onClick={handleConfirmDelete}
+                className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-lg shadow-red-600/30 transition flex items-center gap-1.5"
+              >
+                {isDeletingVideo ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : null}
+                <span>Confirm Permanent Delete</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
