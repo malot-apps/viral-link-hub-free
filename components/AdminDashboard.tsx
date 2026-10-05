@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { IVideo, ISettings, IVisitorLog } from '@/lib/types';
 import AdminGrowthTab from '@/components/AdminGrowthTab';
+import ImageUploader from '@/components/ImageUploader';
 
 interface AdminStats {
   liveActiveUsers: number;
@@ -375,8 +376,8 @@ export default function AdminDashboard({
       setVideoForm({
         title: '',
         description: '',
-        posterUrl: '/images/hero_viral_cyberpunk.jpg',
-        bannerUrl: '/images/hero_viral_cyberpunk.jpg',
+        posterUrl: '',
+        bannerUrl: '',
         category: 'Trending',
         streamUrl: '',
         directAdLink: '',
@@ -396,7 +397,7 @@ export default function AdminDashboard({
     setVideoFormError('');
 
     if (!videoForm.title.trim() || !videoForm.streamUrl.trim() || !videoForm.posterUrl.trim()) {
-      setVideoFormError('Title, Stream URL, and Poster URL are required.');
+      setVideoFormError('Title, Stream URL, and Poster Image are required. Please upload a poster.');
       return;
     }
 
@@ -1654,29 +1655,27 @@ export default function AdminDashboard({
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Poster URL *</label>
-                  <input
-                    type="text"
-                    required
-                    value={videoForm.posterUrl}
-                    onChange={(e) => setVideoForm({ ...videoForm, posterUrl: e.target.value })}
-                    placeholder="/images/hero_viral_cyberpunk.jpg"
-                    className="w-full bg-[#181d2c] border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-[#e50914] transition font-mono"
-                  />
-                </div>
+              {/* Media Image Uploaders: Poster & Banner */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                <ImageUploader
+                  label="Movie Poster Image"
+                  imageType="poster"
+                  value={videoForm.posterUrl}
+                  onChange={(url) => setVideoForm((prev) => ({ ...prev, posterUrl: url }))}
+                  videoId={editingVideoId || undefined}
+                  required={true}
+                  helpText="Recommended: 2:3 vertical (e.g. 600x900) or animated GIF"
+                />
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Banner Image URL</label>
-                  <input
-                    type="text"
-                    value={videoForm.bannerUrl}
-                    onChange={(e) => setVideoForm({ ...videoForm, bannerUrl: e.target.value })}
-                    placeholder="/images/hero_viral_cyberpunk.jpg"
-                    className="w-full bg-[#181d2c] border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-[#e50914] transition font-mono"
-                  />
-                </div>
+                <ImageUploader
+                  label="Banner / Backdrop Image"
+                  imageType="banner"
+                  value={videoForm.bannerUrl}
+                  onChange={(url) => setVideoForm((prev) => ({ ...prev, bannerUrl: url }))}
+                  videoId={editingVideoId || undefined}
+                  required={false}
+                  helpText="Recommended: 16:9 landscape or animated GIF"
+                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

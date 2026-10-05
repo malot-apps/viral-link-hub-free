@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { fetchVideoById, modifyVideo, removeVideo, logAdminAction } from '@/lib/data-service';
 import { verifyAdminSession } from '@/lib/admin-auth';
 import { isValidHttpUrl, sanitizeString } from '@/lib/security';
+import { deleteStorageFile } from '@/lib/storage';
 
 export async function GET(
   req: NextRequest,
@@ -118,10 +119,27 @@ export async function PUT(
       updatePayload.directAdLink = directAd;
     }
 
+    const existing = await fetchVideoById(id);
+    if (!existing) {
+      return NextResponse.json({ success: false, error: 'Video not found' }, { status: 404 });
+    }
+
     const updated = await modifyVideo(id, updatePayload);
 
     if (!updated) {
       return NextResponse.json({ success: false, error: 'Video not found' }, { status: 404 });
+    }
+
+    // Safely remove superseded storage files if an image was replaced with a new URL
+    if (updatePayload.posterUrl && existing.posterUrl && existing.posterUrl !== updatePayload.posterUrl) {
+      deleteStorageFile(existing.posterUrl).catch((e) =>
+        console.warn('[Storage Cleanup Warning on Poster Replace]:', e.message)
+      );
+    }
+    if (updatePayload.bannerUrl && existing.bannerUrl && existing.bannerUrl !== updatePayload.bannerUrl) {
+      deleteStorageFile(existing.bannerUrl).catch((e) =>
+        console.warn('[Storage Cleanup Warning on Banner Replace]:', e.message)
+      );
     }
 
     await logAdminAction({
@@ -173,6 +191,18 @@ export async function DELETE(
 
     if (!deleted) {
       return NextResponse.json({ success: false, error: 'Video not found' }, { status: 404 });
+    }
+
+    // Safely remove associated storage files
+    if (existing?.posterUrl) {
+      deleteStorageFile(existing.posterUrl).catch((e) =>
+        console.warn('[Storage Cleanup Warning on Video Delete - Poster]:', e.message)
+      );
+    }
+    if (existing?.bannerUrl && existing.bannerUrl !== existing.posterUrl) {
+      deleteStorageFile(existing.bannerUrl).catch((e) =>
+        console.warn('[Storage Cleanup Warning on Video Delete - Banner]:', e.message)
+      );
     }
 
     await logAdminAction({

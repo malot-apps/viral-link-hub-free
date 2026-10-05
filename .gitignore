@@ -1,5 +1,7 @@
 node_modules/
 .next/
+.next_dev/
+public/uploads/
 coverage/
 .DS_Store
 *.log

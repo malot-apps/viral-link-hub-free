@@ -92,7 +92,40 @@ async function runTests() {
     headers: { Cookie: cookieHeader },
   });
 
-  // 7. Video CRUD
+  // 6.1 Admin Image Upload API Security & Validation
+  const unauthUpload = await fetch(`${BASE_URL}/api/v1/admin/upload-image`, { method: 'POST' });
+  console.log(`[TEST] Admin Upload Image (Unauthenticated 401 Gate): ${unauthUpload.status === 401 ? 'PASS' : 'FAIL'} (status: ${unauthUpload.status})`);
+
+  // Valid 1x1 transparent PNG buffer
+  const tinyPngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+  const pngBuffer = Buffer.from(tinyPngBase64, 'base64');
+  const uploadFormData = new FormData();
+  const blob = new Blob([pngBuffer], { type: 'image/png' });
+  uploadFormData.append('file', blob, 'test-poster.png');
+  uploadFormData.append('imageType', 'poster');
+  uploadFormData.append('videoId', 'test-video-uuid-1');
+
+  const uploadRes = await fetch(`${BASE_URL}/api/v1/admin/upload-image`, {
+    method: 'POST',
+    headers: { Cookie: cookieHeader },
+    body: uploadFormData,
+  });
+  const uploadData = await uploadRes.json().catch(() => ({}));
+  const uploadPass = uploadRes.status === 200 && uploadData.success && Boolean(uploadData.data?.url);
+  console.log(`[TEST] Admin Image Upload (Authenticated PNG): ${uploadPass ? 'PASS' : 'FAIL'} (status: ${uploadRes.status})`);
+  const uploadedUrl = uploadData.data?.url;
+
+  // Test invalid MIME rejection
+  const invalidFormData = new FormData();
+  invalidFormData.append('file', new Blob(['hello world'], { type: 'text/plain' }), 'evil.txt');
+  const rejectRes = await fetch(`${BASE_URL}/api/v1/admin/upload-image`, {
+    method: 'POST',
+    headers: { Cookie: cookieHeader },
+    body: invalidFormData,
+  });
+  console.log(`[TEST] Admin Upload Image (MIME Rejection): ${rejectRes.status === 400 ? 'PASS' : 'FAIL'} (status: ${rejectRes.status})`);
+
+  // 7. Video CRUD using uploaded image URL
   const createVideoRes = await testEndpoint('Admin Video Create', '/api/v1/admin/videos', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Cookie: cookieHeader },
@@ -101,7 +134,7 @@ async function runTests() {
       description: 'Test description for video CRUD verification',
       category: 'Viral Movies',
       streamUrl: 'https://fastcdn.stream/v/test-video',
-      posterUrl: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1',
+      posterUrl: uploadedUrl || 'https://images.unsplash.com/photo-1536440136628-849c177e76a1',
       requiredAdsCount: 2,
       isFeatured: false,
     }),

@@ -278,3 +278,44 @@ CREATE POLICY "Service Role Full Rewards" ON premium_rewards
 
 CREATE POLICY "Service Role Full Audit" ON audit_logs
   FOR ALL USING (auth.role() = 'service_role' OR current_user = 'postgres');
+
+-- ============================================================================
+-- 10. SUPABASE STORAGE: video-images BUCKET & POLICIES
+-- ============================================================================
+-- Provision video-images public bucket for CDN distribution
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'video-images',
+  'video-images',
+  true,
+  10485760, -- 10 MB limit
+  ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+)
+ON CONFLICT (id) DO UPDATE SET
+  public = true,
+  file_size_limit = 10485760,
+  allowed_mime_types = ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+-- Storage Object Policies (Public read, Service Role write/update/delete)
+DROP POLICY IF EXISTS "Public Read Video Images" ON storage.objects;
+CREATE POLICY "Public Read Video Images" ON storage.objects
+  FOR SELECT USING (bucket_id = 'video-images');
+
+DROP POLICY IF EXISTS "Service Role Upload Video Images" ON storage.objects;
+CREATE POLICY "Service Role Upload Video Images" ON storage.objects
+  FOR INSERT WITH CHECK (
+    bucket_id = 'video-images' AND (auth.role() = 'service_role' OR current_user = 'postgres')
+  );
+
+DROP POLICY IF EXISTS "Service Role Update Video Images" ON storage.objects;
+CREATE POLICY "Service Role Update Video Images" ON storage.objects
+  FOR UPDATE USING (
+    bucket_id = 'video-images' AND (auth.role() = 'service_role' OR current_user = 'postgres')
+  );
+
+DROP POLICY IF EXISTS "Service Role Delete Video Images" ON storage.objects;
+CREATE POLICY "Service Role Delete Video Images" ON storage.objects
+  FOR DELETE USING (
+    bucket_id = 'video-images' AND (auth.role() = 'service_role' OR current_user = 'postgres')
+  );
+
