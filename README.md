@@ -4,7 +4,7 @@
 [![Tailwind CSS v4](https://img.shields.io/badge/Tailwind_CSS-v4.0-06B6D4?style=for-the-badge&logo=tailwindcss)](https://tailwindcss.com/)
 [![Telegram WebApp](https://img.shields.io/badge/Telegram_Mini_App-SDK_v8.0-26A5E4?style=for-the-badge&logo=telegram)](https://core.telegram.org/bots/webapps)
 [![Vercel Ready](https://img.shields.io/badge/Vercel-Deploy_Free-000000?style=for-the-badge&logo=vercel)](https://vercel.com/)
-[![MongoDB Atlas](https://img.shields.io/badge/MongoDB-Atlas_Cloud-47A248?style=for-the-badge&logo=mongodb)](https://www.mongodb.com/atlas)
+[![Supabase](https://img.shields.io/badge/Supabase-Free_PostgreSQL-3ECF8E?style=for-the-badge&logo=supabase)](https://supabase.com/)
 [![Monetag & Adsterra](https://img.shields.io/badge/Monetization-Adsterra_%26_Monetag-FF5722?style=for-the-badge)](https://monetag.com/)
 
 **VIRAL LINK HUB** is a high-performance, full-stack streaming portal and Telegram Mini App engineered for maximum ad CPM conversion and viral distribution. Designed with a pitch-black cinematic Netflix theme (`#141414` / `#E50914`), auto-playing animated GIF previews, a non-bypassable anti-bot Telegram channel verification gate, and a dedicated dark glassmorphic Executive Admin Operations Dashboard.
@@ -191,33 +191,46 @@ To connect your Vercel URL to your Telegram Mini App:
 
 ---
 
-## 🔑 Environment Variables
+## 🔑 Environment Variables & Supabase Setup
 
-Create a `.env.local` file for local development or enter them into Vercel Settings -> Environment Variables:
+### 1. Supabase Database Schema
+1. Create a free project at [supabase.com](https://supabase.com).
+2. Open your Supabase Project -> **SQL Editor**.
+3. Copy and run the contents of `supabase-schema.sql` in this repository. It will automatically create all tables (`videos`, `settings`, `admins`, `analytics_events`, `referrals`, `premium_rewards`, `audit_logs`, `users`), RLS security policies, and initial starter movies.
+4. Copy your **Project URL**, **Anon Key**, and **Service Role Key** from Supabase Settings -> API.
+
+### 2. Configure Environment Variables
+Create a `.env.local` file or configure in your deployment dashboard:
 
 ```env
-# MongoDB Atlas Database URI (Required for Vercel persistence)
-MONGODB_URI=mongodb+srv://hubadmin:YOUR_PASSWORD@cluster0.abcde.mongodb.net/virallinkhub?retryWrites=true&w=majority
+# Supabase Database Configuration (Free Tier PostgreSQL)
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOi...
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOi...
 
 # Admin Authentication
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=virallinkhub2026!
-JWT_SECRET=super_secret_jwt_key_viral_link_hub_2026
+ADMIN_SESSION_SECRET=super_secret_session_key_viral_link_hub_2026
 
-# Node Environment
-NODE_ENV=production
+# Mode: 'production' for real Supabase data, 'demo' for preview simulation
+APP_MODE=production
+
+# Telegram Bot Integration (Optional)
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHANNEL_ID=@virallinkhub_official
 ```
 
 ---
 
 ## 🇧🇩 বাংলা গাইড (Step-by-step Bengali Guide)
 
-### ১. কীভাবে Vercel দিয়ে সম্পূর্ণ ফ্রিতে হোস্ট করবেন?
+### ১. কীভাবে Vercel + Supabase দিয়ে সম্পূর্ণ ফ্রিতে হোস্ট করবেন?
 1. **GitHub-এ কোড আপলোড করুন**: আপনার GitHub অ্যাকাউন্টে একটি রিপোজিটরি বানিয়ে পুরো কোডটি পুশ করুন।
-2. **MongoDB Atlas তৈরি করুন**: [mongodb.com/atlas](https://www.mongodb.com)-এ গিয়ে একটি ফ্রি M0 ক্লাস্টার বানান। Network Access-এ গিয়ে `0.0.0.0/0` (Allow Anywhere) এলাউ করে কানেকশন স্ট্রিং কপি করুন।
+2. **Supabase ডাটাবেস তৈরি করুন**: [supabase.com](https://supabase.com)-এ গিয়ে একটি ফ্রি প্রজেক্ট তৈরি করুন। **SQL Editor**-এ গিয়ে এই রিপোজিটরির `supabase-schema.sql` ফাইলটির কোড পেস্ট করে **Run** চাপুন। সব টেবিল এবং সিকিউরিটি পলিসি স্বয়ংক্রিয়ভাবে তৈরি হয়ে যাবে।
 3. **Vercel-এ ডিপ্লয় করুন**: 
    - [vercel.com](https://vercel.com)-এ লগইন করে **Add New Project** দিন এবং GitHub রিপো সিলেক্ট করুন।
-   - Environment Variables অপশনে `MONGODB_URI`, `JWT_SECRET`, `ADMIN_PASSWORD` সেট করে **Deploy** বাটনে চাপ দিন।
+   - Environment Variables অপশনে `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET` সেট করে **Deploy** বাটনে চাপ দিন।
    - কয়েক সেকেন্ডের মধ্যে Vercel আপনাকে একটি লাইভ ফ্রি ডোমেইন দিয়ে দিবে (যেমন: `https://your-app.vercel.app`)।
 
 ### ২. ভিজিটর ও অ্যাডমিন সাইট কীভাবে কাজ করবে?

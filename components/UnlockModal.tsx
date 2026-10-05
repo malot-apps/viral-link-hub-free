@@ -17,8 +17,10 @@ import {
   Loader2,
   RefreshCw,
   Info,
+  Sparkles,
+  Share2,
 } from 'lucide-react';
-import { IVideo, ITelegramUser } from '@/lib/types';
+import { IVideo, ITelegramUser, IUserProfile } from '@/lib/types';
 
 interface UnlockModalProps {
   video: IVideo | null;
@@ -26,6 +28,9 @@ interface UnlockModalProps {
   onClose: () => void;
   globalAdLink: string;
   telegramUser: ITelegramUser;
+  userProfile?: IUserProfile | null;
+  onOpenPremium?: () => void;
+  onOpenShare?: () => void;
   onViewIncremented: (videoId: string, newCount: number) => void;
 }
 
@@ -34,15 +39,22 @@ function UnlockModalContent({
   onClose,
   globalAdLink,
   telegramUser,
+  userProfile,
+  onOpenPremium,
+  onOpenShare,
   onViewIncremented,
 }: {
   video: IVideo;
   onClose: () => void;
   globalAdLink: string;
   telegramUser: ITelegramUser;
+  userProfile?: IUserProfile | null;
+  onOpenPremium?: () => void;
+  onOpenShare?: () => void;
   onViewIncremented: (videoId: string, newCount: number) => void;
 }) {
-  const requiredAds = video.requiredAdsCount ?? 2;
+  const isPremiumUser = Boolean(userProfile?.isPremiumActive);
+  const requiredAds = isPremiumUser ? 0 : (video.requiredAdsCount ?? 2);
   const [completedSteps, setCompletedSteps] = useState<number>(0);
   const [isVerifying, setIsVerifying] = useState<boolean>(false);
   const [verifyCountdown, setVerifyCountdown] = useState<number>(5);
@@ -162,6 +174,18 @@ function UnlockModalContent({
       const nextStep = completedSteps + 1;
       setCompletedSteps(nextStep);
 
+      // Track ad completion towards user's 3-ad reward cycle
+      fetch('/api/v1/analytics/ad-event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: telegramUser.id,
+          event: 'ad_completion',
+          placement: 'unlock_action',
+          contentId: video._id,
+        }),
+      }).catch(() => {});
+
       if (nextStep >= requiredAds) {
         setIsUnlocked(true);
         triggerView(video._id);
@@ -169,7 +193,7 @@ function UnlockModalContent({
     };
 
     finishStep();
-  }, [isVerifying, verifyCountdown, completedSteps, requiredAds, video._id, triggerView]);
+  }, [isVerifying, verifyCountdown, completedSteps, requiredAds, video._id, triggerView, telegramUser.id]);
 
   const currentStep = completedSteps + 1;
   const adUrl = video.directAdLink || globalAdLink || 'https://monetag.com/direct?ref=virallinkhub';
@@ -190,8 +214,16 @@ function UnlockModalContent({
       // non-fatal
     }
 
-    // 2. Open dynamic directAdLink in new tab
-    window.open(adUrl, '_blank', 'noopener,noreferrer');
+    // 2. Open dynamic directAdLink in new tab safely
+    if (typeof window !== 'undefined') {
+      const a = document.createElement('a');
+      a.href = adUrl;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
 
     // 3. Initiate 5-second verification countdown timer
     setVerifyCountdown(5);
@@ -260,27 +292,39 @@ function UnlockModalContent({
           {video.description}
         </p>
 
-        {/* Ad Unlock Status & Dynamic Counter */}
-        <div className="rounded-xl border border-white/10 bg-zinc-900/60 p-3.5 space-y-2.5">
-          <div className="flex items-center justify-between text-xs">
-            <span className="flex items-center gap-1.5 font-medium text-zinc-300">
-              <Lock className="h-3.5 w-3.5 text-amber-400" />
-              <span>Ad Unlock Status</span>
-            </span>
-            {/* Dynamic Counter: Ads Watched: [ X / Required ] */}
-            <span className="font-mono font-bold text-white bg-white/10 px-2 py-0.5 rounded text-[11px]">
-              Ads Watched: [ {completedSteps} / {requiredAds} ]
-            </span>
+        {/* Ad Unlock Status or VIP Status */}
+        {isPremiumUser ? (
+          <div className="rounded-xl border border-amber-500/40 bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-950/30 p-3.5 space-y-1">
+            <div className="flex items-center gap-2 text-amber-300 font-bold text-xs uppercase tracking-wide">
+              <Sparkles className="h-4 w-4" />
+              <span>VIP Premium Active</span>
+            </div>
+            <p className="text-[11px] text-zinc-300">
+              Zero ads required. High-speed direct cloud mirror unlocked instantly!
+            </p>
           </div>
+        ) : (
+          <div className="rounded-xl border border-white/10 bg-zinc-900/60 p-3.5 space-y-2.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="flex items-center gap-1.5 font-medium text-zinc-300">
+                <Lock className="h-3.5 w-3.5 text-amber-400" />
+                <span>Ad Unlock Status</span>
+              </span>
+              {/* Dynamic Counter: Ads Watched: [ X / Required ] */}
+              <span className="font-mono font-bold text-white bg-white/10 px-2 py-0.5 rounded text-[11px]">
+                Ads Watched: [ {completedSteps} / {requiredAds} ]
+              </span>
+            </div>
 
-          {/* Step Progress Visual Bar */}
-          <div className="w-full bg-zinc-800 rounded-full h-2 overflow-hidden">
-            <div
-              className="bg-[#e50914] h-full transition-all duration-300"
-              style={{ width: `${Math.min(100, (completedSteps / requiredAds) * 100)}%` }}
-            />
+            {/* Step Progress Visual Bar */}
+            <div className="w-full bg-zinc-800 rounded-full h-2 overflow-hidden">
+              <div
+                className="bg-[#e50914] h-full transition-all duration-300"
+                style={{ width: `${Math.min(100, (completedSteps / requiredAds) * 100)}%` }}
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         {/* ================= GENTLE AD-BLOCKER NOTICE ================= */}
         {isAdBlockerDetected && !adBlockerDismissed && !isUnlocked && (
@@ -429,6 +473,30 @@ function UnlockModalContent({
               </button>
             )}
 
+            {/* Optional Growth & 24h VIP Access Bar */}
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/5">
+              {onOpenShare && (
+                <button
+                  type="button"
+                  onClick={onOpenShare}
+                  className="flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 py-2.5 text-xs font-semibold text-zinc-300 transition"
+                >
+                  <Share2 className="h-3.5 w-3.5 text-sky-400" />
+                  <span>Share (+1 Friend)</span>
+                </button>
+              )}
+              {onOpenPremium && !isPremiumUser && (
+                <button
+                  type="button"
+                  onClick={onOpenPremium}
+                  className="flex items-center justify-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 py-2.5 text-xs font-semibold text-amber-300 transition shadow-sm"
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                  <span>Get 24h VIP</span>
+                </button>
+              )}
+            </div>
+
             {/* Trust & anti-fraud badge */}
             <div className="flex items-center justify-between text-[10px] text-zinc-500 pt-1">
               <span className="flex items-center gap-1">
@@ -461,6 +529,9 @@ export default function UnlockModal({
   onClose,
   globalAdLink,
   telegramUser,
+  userProfile,
+  onOpenPremium,
+  onOpenShare,
   onViewIncremented,
 }: UnlockModalProps) {
   if (!isOpen || !video) return null;
@@ -473,6 +544,9 @@ export default function UnlockModal({
         onClose={onClose}
         globalAdLink={globalAdLink}
         telegramUser={telegramUser}
+        userProfile={userProfile}
+        onOpenPremium={onOpenPremium}
+        onOpenShare={onOpenShare}
         onViewIncremented={onViewIncremented}
       />
     </div>

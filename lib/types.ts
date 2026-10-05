@@ -22,6 +22,23 @@ export interface IVideo {
   updatedAt: string;
 }
 
+export interface IAdPlacements {
+  homeBanner: boolean;
+  contentCard: boolean;
+  contentDetails: boolean;
+  unlockAction: boolean;
+  betweenNav: boolean;
+  popunder: boolean;
+  premiumRewardArea: boolean;
+}
+
+export interface IABTestingConfig {
+  enabled: boolean;
+  experimentName: string;
+  variantA: string;
+  variantB: string;
+}
+
 export interface ISettings {
   appName: string;
   maintenanceMode: boolean;
@@ -35,6 +52,121 @@ export interface ISettings {
   telegramChannelUrl?: string;
   forceJoinChannel?: boolean;
   isMaintenanceBypassAllowed?: boolean;
+  // Growth & Referral Controls
+  premiumRewardEnabled?: boolean;
+  premiumRequiredAds?: number;
+  premiumRequiredReferrals?: number;
+  premiumDurationHours?: number;
+  referralQualificationRule?: 'view_content' | 'ad_completion' | 'unlock_content';
+  referralSystemEnabled?: boolean;
+  channelVerificationEnabled?: boolean;
+  // Ad Frequency Controls
+  adFrequencyEnabled?: boolean;
+  maxAdsPerSession?: number;
+  maxPopundersPerSession?: number;
+  adCooldownSeconds?: number;
+  maxAdsPerDay?: number;
+  adPlacements?: IAdPlacements;
+  abTesting?: IABTestingConfig;
+}
+
+export interface IUserProfile {
+  telegramUserId: string;
+  username: string;
+  firstName: string;
+  lastName: string;
+  isTelegramPremium: boolean;
+  referralCode: string;
+  referredBy: string | null;
+  referralCount: number;
+  qualifiedReferralCount: number;
+  adActionsCompleted: number;
+  premiumUntil: string | null;
+  isPremiumActive: boolean;
+  premiumClaimedCount: number;
+  firstSeenAt: string;
+  lastSeenAt: string;
+}
+
+export interface IReferralLeaderboardEntry {
+  rank: number;
+  displayName: string;
+  referralCode: string;
+  qualifiedReferrals: number;
+  totalReferrals: number;
+}
+
+export type AnalyticsEventType =
+  | 'app_open'
+  | 'content_view'
+  | 'content_click'
+  | 'ad_impression'
+  | 'ad_click'
+  | 'ad_completion'
+  | 'content_unlock'
+  | 'share_click'
+  | 'share_open'
+  | 'referral_open'
+  | 'qualified_referral'
+  | 'bot_start'
+  | 'channel_click'
+  | 'channel_verification'
+  | 'premium_reward'
+  | 'premium_expired';
+
+export interface IAnalyticsEvent {
+  event: AnalyticsEventType;
+  userId?: string | null;
+  contentId?: string | null;
+  referralCode?: string | null;
+  campaign?: string | null;
+  source?: string | null;
+  placement?: string | null;
+  metadata?: Record<string, any>;
+  ip?: string;
+  userAgent?: string;
+  timestamp?: string;
+}
+
+export interface IGrowthAnalytics {
+  period: 'today' | '7d' | '30d' | 'all';
+  mode: 'production' | 'demo';
+  // User metrics
+  totalUsers: number;
+  newUsers: number;
+  returningUsers: number;
+  dailyActiveUsers: number;
+  // Telegram funnel
+  botStarts: number;
+  miniAppOpens: number;
+  channelClicks: number;
+  channelVerifications: number;
+  // Referral & Virality
+  sharesCount: number;
+  referralOpens: number;
+  qualifiedReferrals: number;
+  // Premium
+  premiumRewardsClaimed: number;
+  activePremiumUsers: number;
+  // Monetization
+  adImpressions: number;
+  adClicks: number;
+  adCompletions: number;
+  contentUnlocks: number;
+  ctr: number;
+  unlockRate: number;
+  topPlacement: string;
+  // Top Lists
+  topContent: Array<{ contentId: string; title: string; views: number; unlocks: number }>;
+  topSharedContent: Array<{ contentId: string; title: string; shares: number }>;
+  topReferralSources: Array<{ source: string; count: number }>;
+  topCampaigns: Array<{ campaign: string; count: number }>;
+  leaderboard: IReferralLeaderboardEntry[];
+  abTestResults?: {
+    variantA: { impressions: number; clicks: number; ctr: number };
+    variantB: { impressions: number; clicks: number; ctr: number };
+    winner?: string;
+  };
 }
 
 export interface IVisitorLog {

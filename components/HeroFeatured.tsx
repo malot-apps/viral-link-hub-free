@@ -2,15 +2,16 @@
 
 import React from 'react';
 import Image from 'next/image';
-import { Play, Info, CloudDownload, Eye } from 'lucide-react';
+import { Play, Info, CloudDownload, Eye, Share2 } from 'lucide-react';
 import { IVideo } from '@/lib/types';
 
 interface HeroFeaturedProps {
   video?: IVideo;
   onOpenUnlockModal: (video: IVideo) => void;
+  onOpenShare?: (video: IVideo) => void;
 }
 
-export default function HeroFeatured({ video, onOpenUnlockModal }: HeroFeaturedProps) {
+export default function HeroFeatured({ video, onOpenUnlockModal, onOpenShare }: HeroFeaturedProps) {
   if (!video) return null;
 
   return (
@@ -91,6 +92,17 @@ export default function HeroFeatured({ video, onOpenUnlockModal }: HeroFeaturedP
               <Info className="h-4 w-4" />
               <span>Details & Mirrors</span>
             </button>
+
+            {onOpenShare && (
+              <button
+                onClick={() => onOpenShare(video)}
+                className="flex items-center gap-2 rounded-lg border border-sky-500/30 bg-sky-500/10 hover:bg-sky-500/20 px-4 py-2.5 text-sm font-semibold text-sky-300 transition-colors active:scale-[0.98]"
+                title="Share & Earn Referral Credit"
+              >
+                <Share2 className="h-4 w-4" />
+                <span className="hidden sm:inline">Share</span>
+              </button>
+            )}
           </div>
         </div>
       </div>

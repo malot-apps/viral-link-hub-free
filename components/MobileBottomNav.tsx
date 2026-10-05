@@ -11,6 +11,7 @@ interface MobileBottomNavProps {
   onSelectCategory: (category: string) => void;
   telegramUser: ITelegramUser;
   onOpenUserModal: () => void;
+  onOpenPremiumModal?: () => void;
 }
 
 export default function MobileBottomNav({
@@ -20,6 +21,7 @@ export default function MobileBottomNav({
   onSelectCategory,
   telegramUser,
   onOpenUserModal,
+  onOpenPremiumModal,
 }: MobileBottomNavProps) {
   const [isCategorySheetOpen, setIsCategorySheetOpen] = useState(false);
 
@@ -52,7 +54,11 @@ export default function MobileBottomNav({
 
   const handlePremiumClick = () => {
     onSelectTab('premium');
-    onSelectCategory('Terabox Exclusives');
+    if (onOpenPremiumModal) {
+      onOpenPremiumModal();
+    } else {
+      onSelectCategory('Terabox Exclusives');
+    }
   };
 
   const handleProfileClick = () => {

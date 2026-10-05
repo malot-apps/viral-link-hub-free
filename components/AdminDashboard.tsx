@@ -29,8 +29,10 @@ import {
   ArrowLeft,
   ChevronRight,
   Info,
+  TrendingUp,
 } from 'lucide-react';
 import { IVideo, ISettings, IVisitorLog } from '@/lib/types';
+import AdminGrowthTab from '@/components/AdminGrowthTab';
 
 interface AdminStats {
   liveActiveUsers: number;
@@ -77,7 +79,7 @@ export default function AdminDashboard({
   const [appMode, setAppMode] = useState<'production' | 'demo'>('production');
 
   // Navigation Tabs
-  const [activeTab, setActiveTab] = useState<'analytics' | 'videos' | 'settings' | 'audit' | 'api-console'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'growth' | 'videos' | 'settings' | 'audit' | 'api-console'>('analytics');
 
   // Login form state
   const [usernameInput, setUsernameInput] = useState('');
@@ -324,6 +326,28 @@ export default function AdminDashboard({
       setSettingsError('Network failure saving settings.');
     } finally {
       setIsSavingSettings(false);
+    }
+  };
+
+  // Handle Update Partial Settings (for Growth & Placements tab)
+  const handleUpdatePartialSettings = async (partialSettings: Partial<ISettings>): Promise<boolean> => {
+    try {
+      const merged = { ...settingsForm, ...partialSettings };
+      const res = await fetch('/api/v1/admin/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(merged),
+      });
+      const data = await res.json();
+      if (data.success && data.data) {
+        setSettingsForm(data.data);
+        if (onSettingsUpdated) onSettingsUpdated(data.data);
+        fetchAuditLogsList();
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
     }
   };
 
@@ -681,7 +705,7 @@ export default function AdminDashboard({
                 appMode === 'demo' ? 'bg-amber-400' : 'bg-emerald-400'
               }`}
             />
-            {appMode === 'demo' ? 'Demo Mode Active' : 'Production Mode (MongoDB)'}
+            {appMode === 'demo' ? 'Demo Mode Active' : 'Production Mode (Supabase)'}
           </div>
         </div>
 
@@ -742,6 +766,18 @@ export default function AdminDashboard({
           >
             <Activity className="w-4 h-4" />
             <span>Overview & Analytics</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('growth')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold tracking-wide transition whitespace-nowrap ${
+              activeTab === 'growth'
+                ? 'bg-[#e50914] text-white shadow-md shadow-red-600/20'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <TrendingUp className="w-4 h-4" />
+            <span>Growth & Monetization Engine</span>
           </button>
 
           <button
@@ -881,7 +917,7 @@ export default function AdminDashboard({
                   <div className="text-xs text-slate-400 font-medium">Database Layer</div>
                   <div className="text-xl font-bold text-white mt-0.5 flex items-center gap-2">
                     <Database className="w-4 h-4 text-emerald-400" />
-                    <span>{appMode === 'production' ? 'MongoDB Atlas' : 'Demo Memory'}</span>
+                    <span>{appMode === 'production' ? 'Supabase PostgreSQL' : 'Demo Mode (Simulated)'}</span>
                   </div>
                 </div>
                 <span
@@ -944,7 +980,20 @@ export default function AdminDashboard({
         )}
 
         {/* ------------------------------------------------------------- */}
-        {/* TAB 2: VIDEO CATALOG                                          */}
+        {/* TAB 2: GROWTH & MONETIZATION ENGINE                           */}
+        {/* ------------------------------------------------------------- */}
+        {activeTab === 'growth' && (
+          <div className="space-y-6">
+            <AdminGrowthTab
+              settings={settingsForm}
+              onUpdateSettings={handleUpdatePartialSettings}
+              appMode={appMode}
+            />
+          </div>
+        )}
+
+        {/* ------------------------------------------------------------- */}
+        {/* TAB 3: VIDEO CATALOG                                          */}
         {/* ------------------------------------------------------------- */}
         {activeTab === 'videos' && (
           <div className="space-y-6">
@@ -1039,6 +1088,7 @@ export default function AdminDashboard({
                             <div className="flex items-center gap-3">
                               <div className="w-14 h-9 rounded-lg bg-black/40 overflow-hidden relative border border-white/10 shrink-0">
                                 {video.posterUrl ? (
+                                  /* eslint-disable-next-line @next/next/no-img-element */
                                   <img
                                     src={video.posterUrl}
                                     alt={video.title}
@@ -1422,8 +1472,8 @@ export default function AdminDashboard({
                 <div className="p-4 bg-[#181d2c]/60 rounded-xl border border-white/5 space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-slate-400">Database Layer:</span>
-                    <span className="font-bold text-white font-mono">
-                      {appMode === 'production' ? 'MongoDB Mongoose Driver' : 'Isolated Demo Store'}
+                    <span className="font-bold text-emerald-400 font-mono">
+                      {appMode === 'production' ? 'Supabase PostgreSQL (@supabase/supabase-js)' : 'Demo Mode (Isolated Catalog)'}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">

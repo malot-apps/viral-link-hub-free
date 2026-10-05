@@ -11,8 +11,10 @@ import TelegramUserSelector from '@/components/TelegramUserSelector';
 import AdminDashboard from '@/components/AdminDashboard';
 import MaintenanceScreen from '@/components/MaintenanceScreen';
 import MobileBottomNav from '@/components/MobileBottomNav';
-import { IVideo, ISettings, ITelegramUser } from '@/lib/types';
-import { Search, Cloud, Send } from 'lucide-react';
+import PremiumRewardModal from '@/components/PremiumRewardModal';
+import ShareModal from '@/components/ShareModal';
+import { IVideo, ISettings, ITelegramUser, IUserProfile } from '@/lib/types';
+import { Search, Cloud, Send, Sparkles, Share2, ExternalLink } from 'lucide-react';
 
 declare global {
   interface Window {
@@ -63,6 +65,12 @@ export default function HomePage() {
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [maintenanceBypassed, setMaintenanceBypassed] = useState(false);
   const [mobileActiveTab, setMobileActiveTab] = useState<string>('home');
+
+  // User Profile, Referral & VIP Premium States
+  const [userProfile, setUserProfile] = useState<IUserProfile | null>(null);
+  const [isPremiumModalOpen, setIsPremiumModalOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [shareTargetVideo, setShareTargetVideo] = useState<IVideo | null>(null);
 
   // Live Stats & Heartbeat
   const [liveUsersCount, setLiveUsersCount] = useState<number>(1);
@@ -129,15 +137,55 @@ export default function HomePage() {
     }
   }, [telegramUser]);
 
+  // Sync User Profile (Referrals, Ads, Premium Status)
+  const syncUser = useCallback(async () => {
+    try {
+      let startParam = '';
+      if (typeof window !== 'undefined') {
+        const urlParams = new URLSearchParams(window.location.search);
+        startParam =
+          urlParams.get('startapp') ||
+          urlParams.get('start') ||
+          urlParams.get('tgWebAppStartParam') ||
+          urlParams.get('ref') ||
+          '';
+      }
+
+      const rawInitData =
+        typeof window !== 'undefined' && window.Telegram?.WebApp?.initData
+          ? window.Telegram.WebApp.initData
+          : JSON.stringify(telegramUser);
+
+      const res = await fetch('/api/v1/user/sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-telegram-init-data': rawInitData,
+        },
+        body: JSON.stringify({
+          initData: rawInitData,
+          startParam,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.data) {
+        setUserProfile(data.data);
+      }
+    } catch {
+      // non-fatal
+    }
+  }, [telegramUser]);
+
   useEffect(() => {
     loadConfig();
     loadMovies();
     sendPing();
+    syncUser();
 
     // Ping every 30 seconds to maintain 5-minute sliding session window
     const pingInterval = setInterval(sendPing, 30000);
     return () => clearInterval(pingInterval);
-  }, [loadConfig, loadMovies, sendPing]);
+  }, [loadConfig, loadMovies, sendPing, syncUser]);
 
   // Featured video for Hero section
   const featuredVideo = useMemo(() => {
@@ -207,8 +255,10 @@ export default function HomePage() {
         activeCategory={activeCategory}
         onSelectCategory={setActiveCategory}
         telegramUser={telegramUser}
+        userProfile={userProfile}
         onOpenUserModal={() => setIsUserModalOpen(true)}
         onOpenAdmin={() => setIsAdminModalOpen(true)}
+        onOpenPremium={() => setIsPremiumModalOpen(true)}
         isAdminLoggedIn={false}
         liveUsersCount={liveUsersCount}
       />
@@ -227,6 +277,10 @@ export default function HomePage() {
             <HeroFeatured
               video={featuredVideo}
               onOpenUnlockModal={handleOpenUnlockModal}
+              onOpenShare={(video) => {
+                setShareTargetVideo(video);
+                setIsShareModalOpen(true);
+              }}
             />
           )}
 
@@ -267,6 +321,59 @@ export default function HomePage() {
             </div>
           </div>
 
+          {/* Home Banner Sponsor Ad Placement */}
+          {(settings.adPlacements?.homeBanner ?? true) && !userProfile?.isPremiumActive && (
+            <div className="mx-auto max-w-7xl px-4 pt-4 sm:px-6 lg:px-8">
+              <div className="relative overflow-hidden rounded-xl border border-amber-500/30 bg-gradient-to-r from-amber-950/40 via-zinc-900/90 to-red-950/30 p-3.5 sm:p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-red-600 text-white font-black shadow-md">
+                    <Sparkles className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded border border-amber-400/20">
+                        Sponsor Highlight
+                      </span>
+                      <span className="text-xs font-semibold text-white">Unlock Ultra Fast 4K CDN Mirrors</span>
+                    </div>
+                    <p className="text-[11px] text-zinc-400 mt-0.5">
+                      Visit verified sponsor or complete 3 tasks + refer 3 friends to get 24-Hour VIP completely ad-free!
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <a
+                    href={settings.globalAdLink || 'https://monetag.com/direct?ref=virallinkhub'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => {
+                      fetch('/api/v1/analytics/ad-event', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          userId: telegramUser.id,
+                          event: 'ad_click',
+                          placement: 'home_banner',
+                        }),
+                      }).catch(() => {});
+                    }}
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-black px-4 py-2 text-xs font-bold transition shadow"
+                  >
+                    <span>Check Sponsor</span>
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                  <button
+                    onClick={() => setIsPremiumModalOpen(true)}
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white px-3 py-2 text-xs font-semibold transition"
+                  >
+                    <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                    <span>24h VIP</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Search / Filter Results View */}
           {searchQuery.trim() || activeCategory !== 'All' ? (
             <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -305,6 +412,18 @@ export default function HomePage() {
                           referrerPolicy="no-referrer"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent" />
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShareTargetVideo(video);
+                            setIsShareModalOpen(true);
+                          }}
+                          className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 hover:bg-[#2AABEE] text-zinc-300 hover:text-white backdrop-blur-sm transition"
+                          title="Share Link"
+                        >
+                          <Share2 className="h-3 w-3" />
+                        </button>
                       </div>
                       <div className="p-3 space-y-1">
                         <h3 className="line-clamp-1 text-xs font-semibold text-white group-hover:text-[#e50914]">
@@ -328,24 +447,40 @@ export default function HomePage() {
                 title="🎬 Viral Movies"
                 videos={viralMovies}
                 onOpenUnlockModal={handleOpenUnlockModal}
+                onOpenShare={(video) => {
+                  setShareTargetVideo(video);
+                  setIsShareModalOpen(true);
+                }}
               />
 
               <VideoRow
                 title="☁️ Terabox Exclusives"
                 videos={teraboxExclusives}
                 onOpenUnlockModal={handleOpenUnlockModal}
+                onOpenShare={(video) => {
+                  setShareTargetVideo(video);
+                  setIsShareModalOpen(true);
+                }}
               />
 
               <VideoRow
                 title="🔥 Trending Now"
                 videos={trendingNowVideos}
                 onOpenUnlockModal={handleOpenUnlockModal}
+                onOpenShare={(video) => {
+                  setShareTargetVideo(video);
+                  setIsShareModalOpen(true);
+                }}
               />
 
               <VideoRow
                 title="⭐ Recommended"
                 videos={recommendedVideos}
                 onOpenUnlockModal={handleOpenUnlockModal}
+                onOpenShare={(video) => {
+                  setShareTargetVideo(video);
+                  setIsShareModalOpen(true);
+                }}
               />
             </div>
           )}
@@ -359,7 +494,36 @@ export default function HomePage() {
         onClose={() => setIsUnlockModalOpen(false)}
         globalAdLink={settings.globalAdLink}
         telegramUser={telegramUser}
-        onViewIncremented={handleViewIncremented}
+        userProfile={userProfile}
+        onOpenPremium={() => setIsPremiumModalOpen(true)}
+        onOpenShare={() => {
+          setShareTargetVideo(selectedVideo);
+          setIsShareModalOpen(true);
+        }}
+        onViewIncremented={(videoId, newCount) => {
+          handleViewIncremented(videoId, newCount);
+          syncUser();
+        }}
+      />
+
+      {/* 24-Hour Premium Reward Modal */}
+      <PremiumRewardModal
+        isOpen={isPremiumModalOpen}
+        onClose={() => setIsPremiumModalOpen(false)}
+        telegramUser={telegramUser}
+        userProfile={userProfile}
+        onProfileUpdated={(updated) => setUserProfile(updated)}
+        globalAdLink={settings.globalAdLink}
+      />
+
+      {/* Social / Telegram Deep-Link Sharing Modal */}
+      <ShareModal
+        video={shareTargetVideo || selectedVideo || featuredVideo}
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        telegramUser={telegramUser}
+        userProfile={userProfile}
+        telegramChannelUrl={settings.telegramChannelUrl}
       />
 
       {/* Telegram User Identity Simulator */}
@@ -414,6 +578,7 @@ export default function HomePage() {
         onSelectCategory={setActiveCategory}
         telegramUser={telegramUser}
         onOpenUserModal={() => setIsUserModalOpen(true)}
+        onOpenPremiumModal={() => setIsPremiumModalOpen(true)}
       />
     </div>
   );

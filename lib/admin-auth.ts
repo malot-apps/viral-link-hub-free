@@ -68,10 +68,10 @@ export function validateAdminCredentials(username?: string, password?: string): 
  * Generates a signed JWT session token for an authenticated administrator.
  */
 export function generateAdminToken(username: string): string {
-  const secret = config.jwtSecret;
+  const secret = config.adminSessionSecret;
 
   if (!secret) {
-    throw new Error('[Security Gate] JWT_SECRET is not configured.');
+    throw new Error('[Security Gate] ADMIN_SESSION_SECRET is not configured.');
   }
 
   const payload: IAdminPayload = {
@@ -94,7 +94,7 @@ export function generateAdminToken(username: string): string {
 export function verifyAdminToken(token?: string | null): IAdminPayload | null {
   if (!token) return null;
 
-  const secret = config.jwtSecret;
+  const secret = config.adminSessionSecret;
   if (!secret) return null;
 
   try {

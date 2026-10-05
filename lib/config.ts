@@ -1,26 +1,23 @@
 export type AppMode = 'production' | 'demo';
 
 /**
- * Application Configuration & Explicit Demo-Mode Safety Gate
- * 
- * Rules:
- * - APP_MODE can be 'production' or 'demo'.
+ * Application Configuration & Safety Gates
+ *
+ * Primary production architecture: Next.js + Supabase.
  * - When APP_MODE=production:
- *   Required production environment variables MUST be present.
- *   MongoDB failure causes fail-closed behavior (returns 500/503).
- *   In-memory fallback and demo credentials are strictly blocked.
+ *   Supabase credentials & Admin credentials are required.
  * - When APP_MODE=demo:
- *   Isolated demo credentials and simulated storage are used.
- *   Demo data is clearly marked and isolated.
- * - If APP_MODE is not explicitly set (e.g. initial preview environment):
- *   Defaults to 'demo' so preview and development operate out-of-the-box.
+ *   Demo data & simulated flows are provided with clear UI indicator.
  */
 
 export const getAppMode = (): AppMode => {
-  if (process.env.APP_MODE === 'production') return 'production';
+  if (process.env.APP_MODE === 'production' && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    return 'production';
+  }
   if (process.env.APP_MODE === 'demo') return 'demo';
-  // Default to demo mode in preview/development when not explicitly configured
-  return 'demo';
+  // Default to demo mode in preview/development when Supabase is not yet configured
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return 'demo';
+  return 'production';
 };
 
 export const APP_MODE: AppMode = getAppMode();
@@ -35,11 +32,11 @@ export interface ProductionConfigValidation {
 
 export function validateProductionConfig(): ProductionConfigValidation {
   const requiredVars = [
-    'MONGODB_URI',
-    'JWT_SECRET',
+    'NEXT_PUBLIC_SUPABASE_URL',
+    'NEXT_PUBLIC_SUPABASE_ANON_KEY',
     'ADMIN_USERNAME',
     'ADMIN_PASSWORD',
-    'APP_URL',
+    'ADMIN_SESSION_SECRET',
   ];
 
   const missing = requiredVars.filter((varName) => {
@@ -57,17 +54,21 @@ export const config = {
   get mode(): AppMode {
     return getAppMode();
   },
-  get appUrl(): string {
-    return process.env.APP_URL || (isDemo() ? 'http://localhost:3000' : '');
+  get supabaseUrl(): string {
+    return process.env.NEXT_PUBLIC_SUPABASE_URL || '';
   },
-  get adminAllowedOrigin(): string {
-    return process.env.ADMIN_ALLOWED_ORIGIN || process.env.APP_URL || '';
+  get supabaseAnonKey(): string {
+    return process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
   },
-  get mongoUri(): string {
-    return process.env.MONGODB_URI || '';
+  get supabaseServiceRoleKey(): string {
+    return process.env.SUPABASE_SERVICE_ROLE_KEY || '';
   },
-  get jwtSecret(): string {
-    return process.env.JWT_SECRET || (isDemo() ? 'demo_jwt_secret_do_not_use_in_prod' : '');
+  get adminSessionSecret(): string {
+    return (
+      process.env.ADMIN_SESSION_SECRET ||
+      process.env.JWT_SECRET ||
+      (isDemo() ? 'demo_admin_session_secret_2026' : '')
+    );
   },
   get adminUsername(): string {
     return process.env.ADMIN_USERNAME || '';
@@ -86,5 +87,11 @@ export const config = {
   },
   get telegramChannelId(): string {
     return process.env.TELEGRAM_CHANNEL_ID || '';
+  },
+  get appUrl(): string {
+    return process.env.APP_URL || '';
+  },
+  get adminAllowedOrigin(): string {
+    return process.env.ADMIN_ALLOWED_ORIGIN || process.env.APP_URL || '';
   },
 };

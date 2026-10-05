@@ -3,15 +3,17 @@
 import React from 'react';
 import Link from 'next/link';
 import { User as UserIcon, Sparkles, Shield } from 'lucide-react';
-import { ITelegramUser } from '@/lib/types';
+import { ITelegramUser, IUserProfile } from '@/lib/types';
 
 interface NavbarProps {
   appName: string;
   activeCategory: string;
   onSelectCategory: (category: string) => void;
   telegramUser: ITelegramUser;
+  userProfile?: IUserProfile | null;
   onOpenUserModal: () => void;
   onOpenAdmin: () => void;
+  onOpenPremium?: () => void;
   isAdminLoggedIn: boolean;
   liveUsersCount: number;
 }
@@ -21,8 +23,10 @@ export default function Navbar({
   activeCategory,
   onSelectCategory,
   telegramUser,
+  userProfile,
   onOpenUserModal,
   onOpenAdmin,
+  onOpenPremium,
   isAdminLoggedIn,
   liveUsersCount,
 }: NavbarProps) {
@@ -79,6 +83,26 @@ export default function Navbar({
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2 sm:gap-2.5">
+          {/* VIP Premium Rewards Button */}
+          {onOpenPremium && (
+            <button
+              onClick={onOpenPremium}
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition border ${
+                userProfile?.isPremiumActive
+                  ? 'border-amber-500/40 bg-amber-500/15 text-amber-300 shadow-sm shadow-amber-500/20'
+                  : 'border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20'
+              }`}
+              title="Unlock 24h VIP Premium"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+              <span>
+                {userProfile?.isPremiumActive
+                  ? 'VIP Active'
+                  : `VIP (${userProfile?.adActionsCompleted ?? 0}/3)`}
+              </span>
+            </button>
+          )}
+
           {/* Admin Dashboard Link */}
           <Link
             href="/admin"

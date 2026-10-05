@@ -2,16 +2,17 @@
 
 import React, { useRef } from 'react';
 import Image from 'next/image';
-import { ChevronLeft, ChevronRight, Play, Cloud, ShieldAlert } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Play, Cloud, ShieldAlert, Share2 } from 'lucide-react';
 import { IVideo } from '@/lib/types';
 
 interface VideoRowProps {
   title: string;
   videos: IVideo[];
   onOpenUnlockModal: (video: IVideo) => void;
+  onOpenShare?: (video: IVideo) => void;
 }
 
-export default function VideoRow({ title, videos, onOpenUnlockModal }: VideoRowProps) {
+export default function VideoRow({ title, videos, onOpenUnlockModal, onOpenShare }: VideoRowProps) {
   const rowRef = useRef<HTMLDivElement>(null);
 
   const scroll = (direction: 'left' | 'right') => {
@@ -85,9 +86,24 @@ export default function VideoRow({ title, videos, onOpenUnlockModal }: VideoRowP
               </div>
 
               {/* Target Type badge top-right */}
-              <div className="absolute top-2 right-2 flex items-center gap-1 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400 backdrop-blur-sm">
-                <Cloud className="h-2.5 w-2.5" />
-                <span>Terabox</span>
+              <div className="absolute top-2 right-2 flex items-center gap-1.5">
+                {onOpenShare && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenShare(video);
+                    }}
+                    className="flex h-6 w-6 items-center justify-center rounded-full bg-black/70 hover:bg-[#2AABEE] text-zinc-300 hover:text-white backdrop-blur-sm transition"
+                    title="Share with Friends"
+                  >
+                    <Share2 className="h-3 w-3" />
+                  </button>
+                )}
+                <div className="flex items-center gap-1 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400 backdrop-blur-sm">
+                  <Cloud className="h-2.5 w-2.5" />
+                  <span>Terabox</span>
+                </div>
               </div>
             </div>
 
