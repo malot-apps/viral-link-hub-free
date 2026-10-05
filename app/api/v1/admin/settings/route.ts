@@ -121,6 +121,65 @@ export async function PUT(req: NextRequest) {
       updatePayload.telegramChannelUrl = url;
     }
 
+    // Monetag parameters
+    if (body.monetagZoneId !== undefined) {
+      updatePayload.monetagZoneId = sanitizeString(body.monetagZoneId);
+    }
+    if (body.monetagEnabled !== undefined) {
+      updatePayload.monetagEnabled = Boolean(body.monetagEnabled);
+    }
+    if (body.inAppFrequency !== undefined) {
+      updatePayload.inAppFrequency = Number(body.inAppFrequency);
+    }
+    if (body.inAppCapping !== undefined) {
+      updatePayload.inAppCapping = Number(body.inAppCapping);
+    }
+    if (body.inAppInterval !== undefined) {
+      updatePayload.inAppInterval = Number(body.inAppInterval);
+    }
+    if (body.inAppTimeout !== undefined) {
+      updatePayload.inAppTimeout = Number(body.inAppTimeout);
+    }
+
+    // Adsterra parameters
+    if (body.adsterraEnabled !== undefined) {
+      updatePayload.adsterraEnabled = Boolean(body.adsterraEnabled);
+    }
+    if (body.adsterraPopunderUrl !== undefined) {
+      updatePayload.adsterraPopunderUrl = String(body.adsterraPopunderUrl).trim();
+    }
+    if (body.adsterraSmartlinkUrl !== undefined) {
+      updatePayload.adsterraSmartlinkUrl = String(body.adsterraSmartlinkUrl).trim();
+    }
+    if (body.adsterraSocialBarUrl !== undefined) {
+      updatePayload.adsterraSocialBarUrl = String(body.adsterraSocialBarUrl).trim();
+    }
+    if (body.adsterraNativeBannerUrl !== undefined) {
+      updatePayload.adsterraNativeBannerUrl = String(body.adsterraNativeBannerUrl).trim();
+    }
+    if (body.adsterraNativeBannerContainer !== undefined) {
+      updatePayload.adsterraNativeBannerContainer = String(body.adsterraNativeBannerContainer).trim();
+    }
+    if (body.adsterraBanner728x90Key !== undefined) {
+      updatePayload.adsterraBanner728x90Key = String(body.adsterraBanner728x90Key).trim();
+    }
+
+    // Placement toggles
+    if (body.adPlacements !== undefined && typeof body.adPlacements === 'object') {
+      updatePayload.adPlacements = body.adPlacements;
+    }
+
+    // Frequency and rate limits
+    if (body.adCooldownSeconds !== undefined) {
+      updatePayload.adCooldownSeconds = Math.max(1, Number(body.adCooldownSeconds));
+    }
+    if (body.maxAdsPerSession !== undefined) {
+      updatePayload.maxAdsPerSession = Math.max(1, Number(body.maxAdsPerSession));
+    }
+    if (body.maxPopundersPerSession !== undefined) {
+      updatePayload.maxPopundersPerSession = Math.max(0, Number(body.maxPopundersPerSession));
+    }
+
     const previousSettings = await fetchSettings();
     const updated = await modifySettings(updatePayload);
 

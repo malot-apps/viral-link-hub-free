@@ -7,7 +7,6 @@ import {
   ExternalLink,
   CheckCircle2,
   Lock,
-  Unlock,
   Copy,
   Check,
   ShieldCheck,
@@ -16,19 +15,23 @@ import {
   Eye,
   Loader2,
   RefreshCw,
-  Info,
   Sparkles,
   Share2,
+  Play,
+  AlertCircle,
 } from 'lucide-react';
-import { IVideo, ITelegramUser, IUserProfile } from '@/lib/types';
+import { IVideo, ITelegramUser, IUserProfile, ISettings } from '@/lib/types';
+import { MONETAG_CONFIG, ADSTERRA_CONFIG, AD_NETWORKS } from '@/lib/ad-constants';
+import { isTelegramWebApp, showMonetagRewardedInterstitial, trackAdTelemetry } from '@/lib/ad-manager';
 
 interface UnlockModalProps {
   video: IVideo | null;
   isOpen: boolean;
   onClose: () => void;
-  globalAdLink: string;
+  globalAdLink?: string;
   telegramUser: ITelegramUser;
   userProfile?: IUserProfile | null;
+  settings?: ISettings;
   onOpenPremium?: () => void;
   onOpenShare?: () => void;
   onViewIncremented: (videoId: string, newCount: number) => void;
@@ -40,15 +43,17 @@ function UnlockModalContent({
   globalAdLink,
   telegramUser,
   userProfile,
+  settings,
   onOpenPremium,
   onOpenShare,
   onViewIncremented,
 }: {
   video: IVideo;
   onClose: () => void;
-  globalAdLink: string;
+  globalAdLink?: string;
   telegramUser: ITelegramUser;
   userProfile?: IUserProfile | null;
+  settings?: ISettings;
   onOpenPremium?: () => void;
   onOpenShare?: () => void;
   onViewIncremented: (videoId: string, newCount: number) => void;
@@ -56,20 +61,32 @@ function UnlockModalContent({
   const isPremiumUser = Boolean(userProfile?.isPremiumActive);
   const requiredAds = isPremiumUser ? 0 : (video.requiredAdsCount ?? 2);
   const [completedSteps, setCompletedSteps] = useState<number>(0);
-  const [isVerifying, setIsVerifying] = useState<boolean>(false);
-  const [verifyCountdown, setVerifyCountdown] = useState<number>(5);
   const [isCopied, setIsCopied] = useState<boolean>(false);
   const [isUnlocked, setIsUnlocked] = useState<boolean>(requiredAds === 0);
 
-  // Ad-Blocker Detection State
+  // Loading & Verification States
+  const [isPlayingMonetagAd, setIsPlayingMonetagAd] = useState<boolean>(false);
+  const [isVerifyingSponsor, setIsVerifyingSponsor] = useState<boolean>(false);
+  const [verifyCountdown, setVerifyCountdown] = useState<number>(5);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string>('');
+  const [showWebFallback, setShowWebFallback] = useState<boolean>(false);
+
+  // Ad-Blocker Detection
   const [isAdBlockerDetected, setIsAdBlockerDetected] = useState<boolean>(false);
   const [isCheckingAdBlocker, setIsCheckingAdBlocker] = useState<boolean>(false);
   const [adBlockerDismissed, setAdBlockerDismissed] = useState<boolean>(false);
 
+  // Environment check
+  const [inTelegram, setInTelegram] = useState<boolean>(false);
+
+  useEffect(() => {
+    setInTelegram(isTelegramWebApp());
+  }, []);
+
   const checkAdBlocker = useCallback(async (): Promise<boolean> => {
     if (typeof window === 'undefined') return false;
 
-    // Method 1: Bait DOM element with common ad classes
     const bait = document.createElement('div');
     bait.className = 'pub_300x250 pub_728x90 text-ad text_ad ad-banner banner-ad adsbox';
     bait.id = 'ad-banner-detector';
@@ -103,7 +120,6 @@ function UnlockModalContent({
 
     if (isBlocked) return true;
 
-    // Method 2: Network probe to well-known ad telemetry script
     try {
       await fetch('https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js', {
         method: 'HEAD',
@@ -116,7 +132,6 @@ function UnlockModalContent({
     }
   }, []);
 
-  // Run detection on modal mount
   useEffect(() => {
     let isMounted = true;
     checkAdBlocker().then((detected) => {
@@ -139,27 +154,72 @@ function UnlockModalContent({
     }
   };
 
-  const triggerView = useCallback(async (videoId: string) => {
-    try {
-      const res = await fetch(`/api/v1/movies/${videoId}/view`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-telegram-init-data': JSON.stringify(telegramUser),
-        },
-      });
-      const data = await res.json();
-      if (data.success && data.viewsCount) {
-        onViewIncremented(videoId, data.viewsCount);
+  const triggerView = useCallback(
+    async (videoId: string) => {
+      try {
+        const res = await fetch(`/api/v1/movies/${videoId}/view`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-telegram-init-data': JSON.stringify(telegramUser),
+          },
+        });
+        const data = await res.json();
+        if (data.success && data.viewsCount) {
+          onViewIncremented(videoId, data.viewsCount);
+        }
+      } catch {
+        // non-fatal
       }
-    } catch {
-      // non-fatal
-    }
-  }, [telegramUser, onViewIncremented]);
+    },
+    [telegramUser, onViewIncremented]
+  );
 
-  // Handle 5-second countdown during sponsor verification
+  // Complete a verified step and claim server-side reward
+  const finalizeStepWithServer = useCallback(
+    async (sessionId: string) => {
+      try {
+        const res = await fetch('/api/v1/ads/claim-reward', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-telegram-init-data': JSON.stringify(telegramUser),
+          },
+          body: JSON.stringify({
+            userId: telegramUser.id,
+            videoId: video._id,
+            sessionId,
+          }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+          setErrorMessage(data.error || 'Reward validation failed. Please try again.');
+          return false;
+        }
+
+        setErrorMessage('');
+        const nextStep = completedSteps + 1;
+        setCompletedSteps(nextStep);
+
+        if (nextStep >= requiredAds) {
+          setIsUnlocked(true);
+          triggerView(video._id);
+        }
+
+        return true;
+      } catch {
+        setErrorMessage('Network error validating ad completion. Please retry.');
+        return false;
+      }
+    },
+    [completedSteps, requiredAds, telegramUser, triggerView, video._id]
+  );
+
+  // Countdown timer for Normal Web / Fallback Sponsor task
   useEffect(() => {
-    if (!isVerifying) return;
+    if (!isVerifyingSponsor) return;
 
     if (verifyCountdown > 0) {
       const timer = setTimeout(() => {
@@ -168,69 +228,145 @@ function UnlockModalContent({
       return () => clearTimeout(timer);
     }
 
-    // Countdown reached 0 -> Step verified!
-    const finishStep = () => {
-      setIsVerifying(false);
-      const nextStep = completedSteps + 1;
-      setCompletedSteps(nextStep);
-
-      // Track ad completion towards user's 3-ad reward cycle
-      fetch('/api/v1/analytics/ad-event', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: telegramUser.id,
-          event: 'ad_completion',
-          placement: 'unlock_action',
-          contentId: video._id,
-        }),
-      }).catch(() => {});
-
-      if (nextStep >= requiredAds) {
-        setIsUnlocked(true);
-        triggerView(video._id);
+    // Countdown reached 0 -> finalize verification with server
+    const completeVerification = async () => {
+      if (activeSessionId) {
+        await finalizeStepWithServer(activeSessionId);
       }
+      setIsVerifyingSponsor(false);
+      setActiveSessionId(null);
     };
 
-    finishStep();
-  }, [isVerifying, verifyCountdown, completedSteps, requiredAds, video._id, triggerView, telegramUser.id]);
+    completeVerification();
+  }, [isVerifyingSponsor, verifyCountdown, activeSessionId, finalizeStepWithServer]);
 
-  const currentStep = completedSteps + 1;
-  const adUrl = video.directAdLink || globalAdLink || 'https://monetag.com/direct?ref=virallinkhub';
+  // ===========================================================================
+  // FLOW 1: MONETAG REWARDED INTERSTITIAL (Telegram Mini App)
+  // Rewarded Interstitial only for explicit "Watch Ad to Unlock" action.
+  // Reward only after the SDK promise resolves!
+  // ===========================================================================
+  const handleWatchMonetagAd = async () => {
+    if (isPlayingMonetagAd || isUnlocked) return;
+    setErrorMessage('');
+    setIsPlayingMonetagAd(true);
 
-  const handleStartSponsorStep = async () => {
-    if (isVerifying || isUnlocked) return;
-
-    // 1. Fire ad click analytics endpoint to record CPM impression
     try {
-      await fetch(`/api/v1/movies/${video._id}/click-ad`, {
+      // 1. Request server-side session token
+      const startRes = await fetch('/api/v1/ads/start', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'x-telegram-init-data': JSON.stringify(telegramUser),
         },
+        body: JSON.stringify({
+          userId: telegramUser.id,
+          videoId: video._id,
+          placement: 'unlock_action',
+          network: 'monetag',
+        }),
       });
-    } catch {
-      // non-fatal
-    }
 
-    // 2. Open dynamic directAdLink in new tab safely
-    if (typeof window !== 'undefined') {
-      const a = document.createElement('a');
-      a.href = adUrl;
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    }
+      const startData = await startRes.json();
+      if (!startRes.ok || !startData.success) {
+        setErrorMessage(startData.error || 'Cannot start ad session. Please wait a moment.');
+        setIsPlayingMonetagAd(false);
+        return;
+      }
 
-    // 3. Initiate 5-second verification countdown timer
-    setVerifyCountdown(5);
-    setIsVerifying(true);
+      const sessionId = startData.sessionId;
+
+      // 2. Play Monetag Rewarded Interstitial and await promise resolution
+      const zoneId = settings?.monetagZoneId || MONETAG_CONFIG.ZONE_ID;
+      const adResult = await showMonetagRewardedInterstitial(zoneId);
+
+      if (!adResult.success) {
+        setErrorMessage(
+          adResult.error || 'Ad playback could not complete. You can use the sponsor task fallback below.'
+        );
+        setShowWebFallback(true);
+        setIsPlayingMonetagAd(false);
+        return;
+      }
+
+      // 3. Promise resolved! Claim reward on server
+      await finalizeStepWithServer(sessionId);
+    } catch (err: any) {
+      setErrorMessage('Ad playback error. Please try again.');
+      setShowWebFallback(true);
+    } finally {
+      setIsPlayingMonetagAd(false);
+    }
   };
 
-  const effectiveStreamUrl = video.streamUrl || video.serverUrl || video.hdSourceUrl || video.targetLink || '';
+  // ===========================================================================
+  // FLOW 2: ADSTERRA SMARTLINK SPONSOR TASK (Normal Web or Telegram Fallback)
+  // Smartlink: only on dedicated Sponsor/Unlock CTA, never navigation buttons.
+  // Never reward ad clicks. Reward only after the 5s verification completes.
+  // ===========================================================================
+  const handleStartSponsorStep = async () => {
+    if (isVerifyingSponsor || isUnlocked) return;
+    setErrorMessage('');
+
+    try {
+      // 1. Request ad session from server
+      const startRes = await fetch('/api/v1/ads/start', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-telegram-init-data': JSON.stringify(telegramUser),
+        },
+        body: JSON.stringify({
+          userId: telegramUser.id,
+          videoId: video._id,
+          placement: 'smartlink_sponsor',
+          network: 'adsterra',
+        }),
+      });
+
+      const startData = await startRes.json();
+      if (!startRes.ok || !startData.success) {
+        setErrorMessage(startData.error || 'Please wait before starting another task.');
+        return;
+      }
+
+      setActiveSessionId(startData.sessionId);
+
+      // 2. Fire ad click telemetry (for analytics only — NOT granting reward!)
+      trackAdTelemetry({
+        event: 'ad_click',
+        network: AD_NETWORKS.ADSTERRA,
+        placement: 'smartlink_sponsor',
+        contentId: video._id,
+        userId: telegramUser.id,
+      });
+
+      // 3. Open dedicated Smartlink in new window
+      const smartlink =
+        settings?.adsterraSmartlinkUrl ||
+        video.directAdLink ||
+        globalAdLink ||
+        ADSTERRA_CONFIG.SMARTLINK_URL;
+
+      if (typeof window !== 'undefined') {
+        const a = document.createElement('a');
+        a.href = smartlink;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+
+      // 4. Start 5-second verification countdown
+      setVerifyCountdown(5);
+      setIsVerifyingSponsor(true);
+    } catch (err) {
+      setErrorMessage('Failed to start sponsor task. Please try again.');
+    }
+  };
+
+  const effectiveStreamUrl =
+    video.streamUrl || video.serverUrl || video.hdSourceUrl || video.targetLink || '';
 
   const handleCopyLink = () => {
     if (effectiveStreamUrl) {
@@ -239,6 +375,9 @@ function UnlockModalContent({
       setTimeout(() => setIsCopied(false), 2500);
     }
   };
+
+  const currentStep = completedSteps + 1;
+  const isMonetagAvailable = inTelegram && (settings?.monetagEnabled !== false);
 
   return (
     <div className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-white/10 bg-[#10121a] shadow-2xl">
@@ -310,9 +449,8 @@ function UnlockModalContent({
                 <Lock className="h-3.5 w-3.5 text-amber-400" />
                 <span>Ad Unlock Status</span>
               </span>
-              {/* Dynamic Counter: Ads Watched: [ X / Required ] */}
               <span className="font-mono font-bold text-white bg-white/10 px-2 py-0.5 rounded text-[11px]">
-                Ads Watched: [ {completedSteps} / {requiredAds} ]
+                Tasks Completed: [ {completedSteps} / {requiredAds} ]
               </span>
             </div>
 
@@ -326,9 +464,17 @@ function UnlockModalContent({
           </div>
         )}
 
-        {/* ================= GENTLE AD-BLOCKER NOTICE ================= */}
+        {/* Error Notification Alert */}
+        {errorMessage && (
+          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200 flex items-start gap-2 animate-in fade-in duration-150">
+            <AlertCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+            <div className="flex-1">{errorMessage}</div>
+          </div>
+        )}
+
+        {/* Ad-Blocker Notice */}
         {isAdBlockerDetected && !adBlockerDismissed && !isUnlocked && (
-          <div className="rounded-xl border border-amber-500/40 bg-gradient-to-br from-amber-500/15 via-zinc-900/90 to-amber-950/20 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="rounded-xl border border-amber-500/40 bg-gradient-to-br from-amber-500/15 via-zinc-900/90 to-amber-950/20 p-4 space-y-3">
             <div className="flex items-start gap-3">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
                 <ShieldAlert className="h-4.5 w-4.5" />
@@ -343,7 +489,7 @@ function UnlockModalContent({
                   </span>
                 </div>
                 <p className="text-xs text-zinc-300 leading-relaxed">
-                  Our high-speed Terabox links are kept <span className="font-semibold text-white">100% free</span> through sponsor verification. Please pause or disable your ad-blocker for this site so the sponsor task registers properly.
+                  Our high-speed links are kept free through sponsor verification. Please pause your ad-blocker or claim a free VIP Pass below!
                 </p>
               </div>
             </div>
@@ -363,7 +509,6 @@ function UnlockModalContent({
                 type="button"
                 onClick={() => setAdBlockerDismissed(true)}
                 className="rounded-lg bg-white/10 hover:bg-white/20 text-zinc-300 px-3 py-2 text-xs font-medium transition-colors"
-                title="Dismiss and continue"
               >
                 Dismiss
               </button>
@@ -371,9 +516,8 @@ function UnlockModalContent({
           </div>
         )}
 
-        {/* Unlock State Check */}
+        {/* Unlocked State */}
         {isUnlocked ? (
-          /* GLOWING UNLOCKED BUTTON: "Go to Stream / Play Video" */
           <div className="space-y-3.5">
             <a
               href={effectiveStreamUrl}
@@ -409,7 +553,7 @@ function UnlockModalContent({
             </div>
           </div>
         ) : (
-          /* LOCKED / 5-SECOND COUNTDOWN & AD BUTTON FLOW */
+          /* Locked Action Flow */
           <div className="space-y-4">
             {/* Step Indicators */}
             <div className="grid grid-cols-2 gap-2">
@@ -435,24 +579,23 @@ function UnlockModalContent({
                       </span>
                     )}
                     <span className="truncate font-medium">
-                      {isDone ? 'Verified' : `Sponsor Task ${index + 1}`}
+                      {isDone ? 'Verified' : `Task ${index + 1}`}
                     </span>
                   </div>
                 );
               })}
             </div>
 
-            {/* 5-Second Verification in Progress State */}
-            {isVerifying ? (
+            {/* Countdown State for Sponsor Task */}
+            {isVerifyingSponsor ? (
               <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 space-y-2 text-center">
                 <div className="flex items-center justify-center gap-2 text-amber-300 text-xs font-semibold">
                   <Loader2 className="h-4 w-4 animate-spin text-amber-400" />
-                  <span>Verifying sponsor ad click...</span>
+                  <span>Verifying sponsor task completion...</span>
                 </div>
                 <p className="text-xs text-zinc-300">
-                  Please wait <span className="tabular-nums font-mono font-bold text-white text-sm">{verifyCountdown}</span> seconds to register verification.
+                  Please wait <span className="tabular-nums font-mono font-bold text-white text-sm">{verifyCountdown}</span> seconds to validate task.
                 </p>
-                {/* Visual animated timer bar */}
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-800 mt-2">
                   <div
                     className="h-full bg-amber-400 transition-all duration-1000 ease-linear"
@@ -460,20 +603,54 @@ function UnlockModalContent({
                   />
                 </div>
               </div>
+            ) : isMonetagAvailable && !showWebFallback ? (
+              /* MONETAG REWARDED INTERSTITIAL BUTTON (Telegram Mini App) */
+              <button
+                onClick={handleWatchMonetagAd}
+                disabled={isPlayingMonetagAd}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#e50914] to-red-600 hover:from-red-600 hover:to-red-700 px-4 py-3 text-sm font-bold text-white shadow-lg transition-transform active:scale-[0.98] disabled:opacity-60"
+              >
+                {isPlayingMonetagAd ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Loading Rewarded Ad...</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-4 w-4 fill-white" />
+                    <span>
+                      Watch Ad to Unlock ({currentStep}/{requiredAds})
+                    </span>
+                  </>
+                )}
+              </button>
             ) : (
-              /* Button 1: "Watch Ad to Unlock" */
+              /* ADSTERRA SPONSOR TASK BUTTON (Normal Web or Telegram Fallback) */
               <button
                 onClick={handleStartSponsorStep}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#e50914] px-4 py-3 text-sm font-bold text-white shadow-lg transition-transform hover:bg-[#c70812] active:scale-[0.98]"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#e50914] hover:bg-[#c70812] px-4 py-3 text-sm font-bold text-white shadow-lg transition-transform active:scale-[0.98]"
               >
                 <ExternalLink className="h-4 w-4" />
                 <span>
-                  Watch Ad to Unlock ({currentStep}/{requiredAds})
+                  Complete Sponsor Step ({currentStep}/{requiredAds})
                 </span>
               </button>
             )}
 
-            {/* Optional Growth & 24h VIP Access Bar */}
+            {/* If in Telegram and fallback is displayed, allow switching back to video */}
+            {inTelegram && showWebFallback && (
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => setShowWebFallback(false)}
+                  className="text-xs text-zinc-400 hover:text-white underline"
+                >
+                  ← Try Rewarded Video Ad instead
+                </button>
+              </div>
+            )}
+
+            {/* Growth & 24h VIP Access Bar */}
             <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/5">
               {onOpenShare && (
                 <button
@@ -497,24 +674,15 @@ function UnlockModalContent({
               )}
             </div>
 
-            {/* Trust & anti-fraud badge */}
+            {/* Trust badge */}
             <div className="flex items-center justify-between text-[10px] text-zinc-500 pt-1">
               <span className="flex items-center gap-1">
                 <ShieldCheck className="h-3.5 w-3.5 text-zinc-400" />
-                <span>Telegram WebApp Verified</span>
+                <span>{inTelegram ? 'Telegram Mini App Secured' : 'Verified Secure Gateway'}</span>
               </span>
-              {/* Optional test button to simulate/toggle ad-blocker check */}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsAdBlockerDetected(!isAdBlockerDetected);
-                  setAdBlockerDismissed(false);
-                }}
-                className="text-zinc-500 hover:text-zinc-300 underline"
-                title="Toggle ad-blocker simulation prompt"
-              >
-                {isAdBlockerDetected ? 'Hide Ad-Blocker Alert' : 'Test Ad-Blocker Alert'}
-              </button>
+              <span className="text-[10px] text-zinc-500">
+                {inTelegram ? 'Monetag Network' : 'Adsterra Network'}
+              </span>
             </div>
           </div>
         )}
@@ -530,6 +698,7 @@ export default function UnlockModal({
   globalAdLink,
   telegramUser,
   userProfile,
+  settings,
   onOpenPremium,
   onOpenShare,
   onViewIncremented,
@@ -539,12 +708,12 @@ export default function UnlockModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
       <UnlockModalContent
-        key={video._id}
         video={video}
         onClose={onClose}
         globalAdLink={globalAdLink}
         telegramUser={telegramUser}
         userProfile={userProfile}
+        settings={settings}
         onOpenPremium={onOpenPremium}
         onOpenShare={onOpenShare}
         onViewIncremented={onViewIncremented}

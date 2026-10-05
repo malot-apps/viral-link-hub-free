@@ -30,6 +30,14 @@ export interface IAdPlacements {
   betweenNav: boolean;
   popunder: boolean;
   premiumRewardArea: boolean;
+  // Specific Monetag & Adsterra Placement Toggles
+  nativeBannerHome?: boolean;
+  nativeBannerContent?: boolean;
+  banner728x90Desktop?: boolean;
+  socialBarGlobal?: boolean;
+  popunderGlobal?: boolean;
+  monetagRewarded?: boolean;
+  monetagInApp?: boolean;
 }
 
 export interface IABTestingConfig {
@@ -52,6 +60,21 @@ export interface ISettings {
   telegramChannelUrl?: string;
   forceJoinChannel?: boolean;
   isMaintenanceBypassAllowed?: boolean;
+  // Monetag Configuration (Telegram Mini App)
+  monetagZoneId?: string;
+  monetagEnabled?: boolean;
+  inAppFrequency?: number;
+  inAppCapping?: number;
+  inAppInterval?: number;
+  inAppTimeout?: number;
+  // Adsterra Configuration (Normal Web)
+  adsterraEnabled?: boolean;
+  adsterraPopunderUrl?: string;
+  adsterraSmartlinkUrl?: string;
+  adsterraSocialBarUrl?: string;
+  adsterraNativeBannerUrl?: string;
+  adsterraNativeBannerContainer?: string;
+  adsterraBanner728x90Key?: string;
   // Growth & Referral Controls
   premiumRewardEnabled?: boolean;
   premiumRequiredAds?: number;
@@ -60,7 +83,7 @@ export interface ISettings {
   referralQualificationRule?: 'view_content' | 'ad_completion' | 'unlock_content';
   referralSystemEnabled?: boolean;
   channelVerificationEnabled?: boolean;
-  // Ad Frequency Controls
+  // Ad Frequency & Abuse Prevention Controls
   adFrequencyEnabled?: boolean;
   maxAdsPerSession?: number;
   maxPopundersPerSession?: number;
@@ -101,8 +124,11 @@ export type AnalyticsEventType =
   | 'content_view'
   | 'content_click'
   | 'ad_impression'
+  | 'ad_start'
+  | 'ad_complete'
   | 'ad_click'
   | 'ad_completion'
+  | 'reward_granted'
   | 'content_unlock'
   | 'share_click'
   | 'share_open'
@@ -122,6 +148,7 @@ export interface IAnalyticsEvent {
   campaign?: string | null;
   source?: string | null;
   placement?: string | null;
+  network?: 'monetag' | 'adsterra' | 'direct' | string;
   metadata?: Record<string, any>;
   ip?: string;
   userAgent?: string;

@@ -18,10 +18,11 @@ export async function POST(req: NextRequest) {
       if (tgUser?.id) userId = String(tgUser.id);
     }
 
-    const eventType: AnalyticsEventType = body.event || 'ad_click';
+    const eventType: AnalyticsEventType = body.event || 'ad_impression';
     const placement = body.placement || 'unlock_action';
-    const contentId = body.contentId || null;
+    const contentId = body.contentId || body.videoId || null;
     const campaign = body.campaign || null;
+    const network = body.network || (placement.includes('native') || placement.includes('728x90') || placement.includes('social') || placement.includes('popunder') ? 'adsterra' : 'monetag');
 
     const ip =
       req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
@@ -45,7 +46,8 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    if (eventType === 'ad_completion' && userId) {
+    // CRITICAL: NEVER reward ad clicks! Only verified completions through /ads/claim-reward or explicit verified event.
+    if ((eventType === 'ad_completion' || eventType === 'ad_complete') && userId) {
       const result = await recordAdCompletionAction({
         userId: String(userId),
         placement,
@@ -56,26 +58,35 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        event: 'ad_completion',
+        event: eventType,
+        network,
         data: result,
       });
     }
 
-    // Log impression or click
+    // Log impression, start, click, or completion telemetry
     await recordAnalyticsEvent({
       event: eventType,
       userId: userId ? String(userId) : null,
       contentId,
       placement,
       campaign,
+      network,
       ip,
       userAgent,
-      metadata: body.metadata || {},
+      metadata: {
+        network,
+        placement,
+        videoId: contentId,
+        ...(body.metadata || {}),
+      },
     });
 
     return NextResponse.json({
       success: true,
       event: eventType,
+      network,
+      placement,
     });
   } catch (error: any) {
     console.error('[Ad Event Error]:', error.message);

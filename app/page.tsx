@@ -12,6 +12,10 @@ import MaintenanceScreen from '@/components/MaintenanceScreen';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import PremiumRewardModal from '@/components/PremiumRewardModal';
 import ShareModal from '@/components/ShareModal';
+import GlobalAdManager from '@/components/ads/GlobalAdManager';
+import AdsterraNativeBanner from '@/components/ads/AdsterraNativeBanner';
+import AdsterraBanner728x90 from '@/components/ads/AdsterraBanner728x90';
+import { isTelegramWebApp } from '@/lib/ad-manager';
 import { IVideo, ISettings, ITelegramUser, IUserProfile } from '@/lib/types';
 import { Search, Cloud, Send, Sparkles, Share2, ExternalLink } from 'lucide-react';
 
@@ -72,9 +76,11 @@ export default function HomePage() {
 
   // Live Stats & Heartbeat
   const [liveUsersCount, setLiveUsersCount] = useState<number>(1);
+  const [isTelegram, setIsTelegram] = useState<boolean>(false);
 
   // Initialize Telegram WebApp or local storage asynchronously
   useEffect(() => {
+    setIsTelegram(isTelegramWebApp());
     const timer = setTimeout(() => {
       if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
         const tg = window.Telegram.WebApp;
@@ -244,6 +250,13 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-[#090a0f] text-zinc-100 flex flex-col font-sans">
+      {/* Centralized Global Ad Manager (Monetag in Telegram Mini App, Adsterra on Web) */}
+      <GlobalAdManager
+        settings={settings}
+        userProfile={userProfile}
+        telegramUserId={telegramUser.id}
+      />
+
       {/* Dynamic Announcement Banner */}
       <AnnouncementBanner text={settings.announcementBannerText} />
 
@@ -317,6 +330,27 @@ export default function HomePage() {
             </div>
           </div>
 
+          {/* Adsterra Native Banner (Home: After Hero / Before Content Rows) */}
+          <AdsterraNativeBanner
+            placement="home_native_banner"
+            isTelegram={isTelegram}
+            isPremium={userProfile?.isPremiumActive}
+            enabled={settings.adPlacements?.nativeBannerHome ?? true}
+            scriptUrl={settings.adsterraNativeBannerUrl}
+            containerId={settings.adsterraNativeBannerContainer}
+            userId={telegramUser.id}
+          />
+
+          {/* Adsterra 728x90 Banner (Desktop Responsive Slot) */}
+          <AdsterraBanner728x90
+            placement="desktop_728x90"
+            isTelegram={isTelegram}
+            isPremium={userProfile?.isPremiumActive}
+            enabled={settings.adPlacements?.banner728x90Desktop ?? true}
+            adKey={settings.adsterraBanner728x90Key}
+            userId={telegramUser.id}
+          />
+
           {/* Home Banner Sponsor Ad Placement */}
           {(settings.adPlacements?.homeBanner ?? true) && !userProfile?.isPremiumActive && (
             <div className="mx-auto max-w-7xl px-4 pt-4 sm:px-6 lg:px-8">
@@ -339,7 +373,7 @@ export default function HomePage() {
                 </div>
                 <div className="flex items-center gap-2 w-full sm:w-auto">
                   <a
-                    href={settings.globalAdLink || 'https://monetag.com/direct?ref=virallinkhub'}
+                    href={settings.adsterraSmartlinkUrl || settings.globalAdLink || 'https://cheflobesofficer.com/cvdp4vvsma?key=fbecdf734cc50866fb1dcfa342c33a86'}
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={() => {
@@ -350,6 +384,7 @@ export default function HomePage() {
                           userId: telegramUser.id,
                           event: 'ad_click',
                           placement: 'home_banner',
+                          network: 'adsterra',
                         }),
                       }).catch(() => {});
                     }}
@@ -449,6 +484,17 @@ export default function HomePage() {
                 }}
               />
 
+              {/* Between Content Sections: Native Banner Block 1 (Max 2) */}
+              <AdsterraNativeBanner
+                placement="content_section_banner_1"
+                isTelegram={isTelegram}
+                isPremium={userProfile?.isPremiumActive}
+                enabled={settings.adPlacements?.nativeBannerContent ?? true}
+                scriptUrl={settings.adsterraNativeBannerUrl}
+                containerId={settings.adsterraNativeBannerContainer}
+                userId={telegramUser.id}
+              />
+
               <VideoRow
                 title="☁️ Terabox Exclusives"
                 videos={teraboxExclusives}
@@ -467,6 +513,17 @@ export default function HomePage() {
                   setShareTargetVideo(video);
                   setIsShareModalOpen(true);
                 }}
+              />
+
+              {/* Between Content Sections: Native Banner Block 2 (Max 2) */}
+              <AdsterraNativeBanner
+                placement="content_section_banner_2"
+                isTelegram={isTelegram}
+                isPremium={userProfile?.isPremiumActive}
+                enabled={settings.adPlacements?.nativeBannerContent ?? true}
+                scriptUrl={settings.adsterraNativeBannerUrl}
+                containerId={settings.adsterraNativeBannerContainer}
+                userId={telegramUser.id}
               />
 
               <VideoRow
@@ -491,6 +548,7 @@ export default function HomePage() {
         globalAdLink={settings.globalAdLink}
         telegramUser={telegramUser}
         userProfile={userProfile}
+        settings={settings}
         onOpenPremium={() => setIsPremiumModalOpen(true)}
         onOpenShare={() => {
           setShareTargetVideo(selectedVideo);

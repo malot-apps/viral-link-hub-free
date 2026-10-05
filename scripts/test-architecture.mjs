@@ -27,17 +27,37 @@ async function runTests() {
     body: JSON.stringify({ userId: 108492041 }),
   });
 
-  // 2. Ad Tracking
+  // 2. Ad Tracking & Monetization System (Monetag + Adsterra)
   await testEndpoint('Ad Tracking Event (Impression)', '/api/v1/analytics/ad-event', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ userId: 108492041, event: 'ad_impression', placement: 'home_banner' }),
+    body: JSON.stringify({ userId: 108492041, event: 'ad_impression', placement: 'home_native_banner', network: 'adsterra' }),
   });
   await testEndpoint('Ad Tracking Event (Click)', '/api/v1/analytics/ad-event', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ userId: 108492041, event: 'ad_click', placement: 'unlock_modal' }),
+    body: JSON.stringify({ userId: 108492041, event: 'ad_click', placement: 'smartlink_sponsor', network: 'adsterra' }),
   });
+
+  const adStartRes = await testEndpoint('Ad Session Start (Monetag Rewarded)', '/api/v1/ads/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId: 108492041, videoId: 'demo-vid-neon-protocol', network: 'monetag', placement: 'unlock_action' }),
+  });
+
+  if (adStartRes.data?.sessionId) {
+    // Wait for minimum duration (4.1 seconds) to test reward claim validation
+    await new Promise((resolve) => setTimeout(resolve, 4100));
+    await testEndpoint('Ad Reward Claim (Verified Session)', '/api/v1/ads/claim-reward', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: 108492041,
+        videoId: 'demo-vid-neon-protocol',
+        sessionId: adStartRes.data.sessionId,
+      }),
+    });
+  }
 
   // 3. Telegram Flow & User Sync
   const syncRes = await testEndpoint('Telegram User Sync', '/api/v1/user/sync', {

@@ -126,8 +126,8 @@ export default function AdminDashboard({
   const [settingsForm, setSettingsForm] = useState<ISettings>({
     appName: 'VIRAL LINK HUB',
     maintenanceMode: false,
-    globalAdLink: 'https://monetag.com/direct?zone=78912&ref=virallinkhub',
-    primaryDirectLink: 'https://monetag.com/direct?zone=78912&ref=virallinkhub',
+    globalAdLink: 'https://cheflobesofficer.com/cvdp4vvsma?key=fbecdf734cc50866fb1dcfa342c33a86',
+    primaryDirectLink: 'https://cheflobesofficer.com/cvdp4vvsma?key=fbecdf734cc50866fb1dcfa342c33a86',
     secondaryDirectLink: '',
     defaultAdsRequired: 2,
     announcementBannerText: '🔥 High-Speed Direct Cloud Streams active!',
@@ -135,6 +135,37 @@ export default function AdminDashboard({
     forceJoinChannel: false,
     bannerScriptCode: '',
     popunderScriptCode: '',
+    monetagZoneId: '11955914',
+    monetagEnabled: true,
+    inAppFrequency: 2,
+    inAppInterval: 30,
+    inAppTimeout: 5,
+    adsterraEnabled: true,
+    adsterraPopunderUrl: 'https://cheflobesofficer.com/26/24/93/262493230301da17c67cbcf5a1d5e15b.js',
+    adsterraSmartlinkUrl: 'https://cheflobesofficer.com/cvdp4vvsma?key=fbecdf734cc50866fb1dcfa342c33a86',
+    adsterraSocialBarUrl: 'https://cheflobesofficer.com/db/ca/37/dbca37a0ea14e2da7c5826f0a5e6fbb9.js',
+    adsterraNativeBannerUrl: 'https://cheflobesofficer.com/5f7e7c20bab3c9a4fa6f40424b458934/invoke.js',
+    adsterraNativeBannerContainer: 'container-5f7e7c20bab3c9a4fa6f40424b458934',
+    adsterraBanner728x90Key: 'd2a5e27ec28fef3e096f82c41992173b',
+    adCooldownSeconds: 10,
+    maxAdsPerSession: 5,
+    maxPopundersPerSession: 1,
+    adPlacements: {
+      homeBanner: true,
+      contentCard: true,
+      contentDetails: true,
+      unlockAction: true,
+      betweenNav: true,
+      popunder: true,
+      premiumRewardArea: true,
+      nativeBannerHome: true,
+      nativeBannerContent: true,
+      banner728x90Desktop: true,
+      socialBarGlobal: true,
+      popunderGlobal: true,
+      monetagRewarded: true,
+      monetagInApp: true,
+    },
   });
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [settingsSuccess, setSettingsSuccess] = useState(false);
@@ -1237,66 +1268,307 @@ export default function AdminDashboard({
                 />
               </div>
 
-              {/* Monetization Direct Links */}
+              {/* MONETAG MONETIZATION (TELEGRAM MINI APP) */}
               <div className="space-y-4 pt-4 border-t border-white/5">
-                <h4 className="text-xs font-bold text-[#e50914] uppercase tracking-wider">
-                  Ad Monetization Gateways
-                </h4>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-xs font-bold text-[#e50914] uppercase tracking-wider flex items-center gap-1.5">
+                      <span>Monetag Integration</span>
+                      <span className="text-[10px] bg-[#e50914]/20 text-[#e50914] px-1.5 py-0.5 rounded font-mono">
+                        Telegram Mini App
+                      </span>
+                    </h4>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      SDK-powered rewarded video and in-app interstitials with server-side validation.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSettingsForm({
+                        ...settingsForm,
+                        monetagEnabled: !settingsForm.monetagEnabled,
+                      })
+                    }
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition border ${
+                      settingsForm.monetagEnabled !== false
+                        ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                        : 'bg-slate-800 border-white/10 text-slate-400'
+                    }`}
+                  >
+                    {settingsForm.monetagEnabled !== false ? 'Active' : 'Disabled'}
+                  </button>
+                </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
-                      Primary Direct Sponsor Link
+                      Monetag Zone ID
                     </label>
                     <input
-                      type="url"
-                      value={settingsForm.primaryDirectLink}
+                      type="text"
+                      value={settingsForm.monetagZoneId || '11955914'}
                       onChange={(e) =>
-                        setSettingsForm({ ...settingsForm, primaryDirectLink: e.target.value })
+                        setSettingsForm({ ...settingsForm, monetagZoneId: e.target.value })
                       }
-                      placeholder="https://monetag.com/direct?zone=..."
+                      placeholder="11955914"
                       className="w-full bg-[#181d2c] border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#e50914] transition font-mono"
                     />
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
-                      Secondary Fallback Ad Link
+                      In-App Interstitial Frequency ({settingsForm.inAppFrequency ?? 2})
+                    </label>
+                    <input
+                      type="range"
+                      min="1"
+                      max="10"
+                      step="1"
+                      value={settingsForm.inAppFrequency ?? 2}
+                      onChange={(e) =>
+                        setSettingsForm({ ...settingsForm, inAppFrequency: Number(e.target.value) })
+                      }
+                      className="w-full accent-[#e50914]"
+                    />
+                    <div className="flex justify-between text-[10px] text-slate-500 font-mono mt-1">
+                      <span>1 page</span>
+                      <span>2 (Default)</span>
+                      <span>5 pages</span>
+                      <span>10 pages</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-white/5 border border-white/5 rounded-xl text-[11px] text-slate-300 space-y-1">
+                  <div className="font-semibold text-amber-300">Format Rules:</div>
+                  <ul className="list-disc list-inside space-y-0.5 text-slate-400">
+                    <li><strong className="text-white">Rewarded Interstitial:</strong> Triggered only on explicit &quot;Watch Ad to Unlock&quot; actions.</li>
+                    <li><strong className="text-white">Abuse Prevention:</strong> Rewards granted only after SDK promise resolves and server validates duration.</li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* ADSTERRA MONETIZATION (NORMAL WEB / VERCEL) */}
+              <div className="space-y-4 pt-4 border-t border-white/5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <span>Adsterra Monetization Suite</span>
+                      <span className="text-[10px] bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded font-mono">
+                        Normal Web / Vercel
+                      </span>
+                    </h4>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Display banners, native recommendations, and popunders on desktop and external mobile browsers.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSettingsForm({
+                        ...settingsForm,
+                        adsterraEnabled: !settingsForm.adsterraEnabled,
+                      })
+                    }
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition border ${
+                      settingsForm.adsterraEnabled !== false
+                        ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                        : 'bg-slate-800 border-white/10 text-slate-400'
+                    }`}
+                  >
+                    {settingsForm.adsterraEnabled !== false ? 'Active' : 'Disabled'}
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                      Adsterra Smartlink (Dedicated Unlock Task)
                     </label>
                     <input
                       type="url"
-                      value={settingsForm.secondaryDirectLink || ''}
+                      value={settingsForm.adsterraSmartlinkUrl || ''}
                       onChange={(e) =>
-                        setSettingsForm({ ...settingsForm, secondaryDirectLink: e.target.value })
+                        setSettingsForm({ ...settingsForm, adsterraSmartlinkUrl: e.target.value })
                       }
-                      placeholder="https://adsterra.com/direct?zone=..."
+                      placeholder="https://cheflobesofficer.com/cvdp4vvsma?key=..."
+                      className="w-full bg-[#181d2c] border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#e50914] transition font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                      728x90 Banner Key (Desktop Slot)
+                    </label>
+                    <input
+                      type="text"
+                      value={settingsForm.adsterraBanner728x90Key || ''}
+                      onChange={(e) =>
+                        setSettingsForm({ ...settingsForm, adsterraBanner728x90Key: e.target.value })
+                      }
+                      placeholder="d2a5e27ec28fef3e096f82c41992173b"
+                      className="w-full bg-[#181d2c] border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#e50914] transition font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                      Native Banner Script URL
+                    </label>
+                    <input
+                      type="url"
+                      value={settingsForm.adsterraNativeBannerUrl || ''}
+                      onChange={(e) =>
+                        setSettingsForm({ ...settingsForm, adsterraNativeBannerUrl: e.target.value })
+                      }
+                      placeholder="https://cheflobesofficer.com/5f7e7c20bab3c9a4fa6f40424b458934/invoke.js"
+                      className="w-full bg-[#181d2c] border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#e50914] transition font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                      Native Banner Container ID
+                    </label>
+                    <input
+                      type="text"
+                      value={settingsForm.adsterraNativeBannerContainer || ''}
+                      onChange={(e) =>
+                        setSettingsForm({ ...settingsForm, adsterraNativeBannerContainer: e.target.value })
+                      }
+                      placeholder="container-5f7e7c20bab3c9a4fa6f40424b458934"
+                      className="w-full bg-[#181d2c] border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#e50914] transition font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                      Popunder Script URL
+                    </label>
+                    <input
+                      type="url"
+                      value={settingsForm.adsterraPopunderUrl || ''}
+                      onChange={(e) =>
+                        setSettingsForm({ ...settingsForm, adsterraPopunderUrl: e.target.value })
+                      }
+                      placeholder="https://cheflobesofficer.com/26/24/93/...js"
+                      className="w-full bg-[#181d2c] border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#e50914] transition font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                      Social Bar Script URL
+                    </label>
+                    <input
+                      type="url"
+                      value={settingsForm.adsterraSocialBarUrl || ''}
+                      onChange={(e) =>
+                        setSettingsForm({ ...settingsForm, adsterraSocialBarUrl: e.target.value })
+                      }
+                      placeholder="https://cheflobesofficer.com/db/ca/37/...js"
                       className="w-full bg-[#181d2c] border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#e50914] transition font-mono"
                     />
                   </div>
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
-                    Default Ads Required Before Link Unlock ({settingsForm.defaultAdsRequired} task/s)
-                  </label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="5"
-                    step="1"
-                    value={settingsForm.defaultAdsRequired}
-                    onChange={(e) =>
-                      setSettingsForm({ ...settingsForm, defaultAdsRequired: Number(e.target.value) })
-                    }
-                    className="w-full accent-[#e50914]"
-                  />
-                  <div className="flex justify-between text-[10px] text-slate-500 font-mono mt-1">
-                    <span>0 (Free Direct)</span>
-                    <span>1 Ad</span>
-                    <span>2 Ads (Recommended)</span>
-                    <span>3 Ads</span>
-                    <span>4 Ads</span>
-                    <span>5 Ads</span>
+              {/* PLACEMENT TOGGLES & ABUSE LIMITS */}
+              <div className="space-y-4 pt-4 border-t border-white/5">
+                <h4 className="text-xs font-bold text-sky-400 uppercase tracking-wider">
+                  Placement Toggles & Abuse Prevention
+                </h4>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                  {[
+                    { key: 'nativeBannerHome', label: 'Home Native Banner' },
+                    { key: 'nativeBannerContent', label: 'Section Banners (Max 2)' },
+                    { key: 'banner728x90Desktop', label: 'Desktop 728x90' },
+                    { key: 'socialBarGlobal', label: 'Global Social Bar' },
+                    { key: 'popunderGlobal', label: 'Session Popunder' },
+                    { key: 'monetagRewarded', label: 'Rewarded Unlock Video' },
+                  ].map(({ key, label }) => {
+                    const active = (settingsForm.adPlacements as any)?.[key] !== false;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() =>
+                          setSettingsForm({
+                            ...settingsForm,
+                            adPlacements: {
+                              ...settingsForm.adPlacements,
+                              homeBanner: true,
+                              contentCard: true,
+                              contentDetails: true,
+                              unlockAction: true,
+                              betweenNav: true,
+                              popunder: true,
+                              premiumRewardArea: true,
+                              [key]: !active,
+                            },
+                          })
+                        }
+                        className={`p-2.5 rounded-xl border text-xs font-medium flex items-center justify-between transition ${
+                          active
+                            ? 'bg-sky-500/15 border-sky-500/30 text-sky-200'
+                            : 'bg-zinc-900/60 border-white/5 text-zinc-500'
+                        }`}
+                      >
+                        <span className="truncate">{label}</span>
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${active ? 'bg-sky-400' : 'bg-zinc-600'}`} />
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                      Ad Cooldown Seconds ({settingsForm.adCooldownSeconds ?? 10}s)
+                    </label>
+                    <input
+                      type="range"
+                      min="5"
+                      max="60"
+                      step="5"
+                      value={settingsForm.adCooldownSeconds ?? 10}
+                      onChange={(e) =>
+                        setSettingsForm({ ...settingsForm, adCooldownSeconds: Number(e.target.value) })
+                      }
+                      className="w-full accent-[#e50914]"
+                    />
+                    <div className="flex justify-between text-[10px] text-slate-500 font-mono mt-1">
+                      <span>5s (Fast)</span>
+                      <span>10s (Recommended)</span>
+                      <span>30s</span>
+                      <span>60s (Strict)</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                      Default Ads Required Before Link Unlock ({settingsForm.defaultAdsRequired} task/s)
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="5"
+                      step="1"
+                      value={settingsForm.defaultAdsRequired}
+                      onChange={(e) =>
+                        setSettingsForm({ ...settingsForm, defaultAdsRequired: Number(e.target.value) })
+                      }
+                      className="w-full accent-[#e50914]"
+                    />
+                    <div className="flex justify-between text-[10px] text-slate-500 font-mono mt-1">
+                      <span>0 (Free)</span>
+                      <span>1 Ad</span>
+                      <span>2 Ads (Recommended)</span>
+                      <span>3 Ads</span>
+                      <span>5 Ads</span>
+                    </div>
                   </div>
                 </div>
               </div>
