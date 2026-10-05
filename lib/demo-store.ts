@@ -1,4 +1,4 @@
-import { IVideo, ISettings, IVisitorLog } from './types';
+import { IVideo, ISettings, IVisitorLog, ITelegramEntity, IGrowthMission, IUserMissionProgress, ICampaign } from './types';
 
 /**
  * Isolated Demo Data Store
@@ -169,6 +169,10 @@ declare global {
     users: Map<string, any>;
     events: any[];
     userAdSessions: Map<string, number[]>;
+    entities: ITelegramEntity[];
+    missions: IGrowthMission[];
+    userMissionProgress: Map<string, IUserMissionProgress[]>;
+    campaigns: ICampaign[];
   } | undefined;
 }
 
@@ -347,6 +351,152 @@ if (!global.__DEMO_DATA_STORE__) {
     users: initialUsers,
     events: initialEvents,
     userAdSessions: new Map(),
+    entities: [
+      {
+        id: 'demo-entity-1',
+        type: 'miniapp',
+        title: 'Viral Link Hub Primary Mini App',
+        identifier: 'viral_link_hub_free_bot/viral',
+        chatId: '',
+        url: 'https://t.me/viral_link_hub_free_bot/viral',
+        isPrimary: true,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: 'demo-entity-2',
+        type: 'bot',
+        title: 'Viral Link Hub Distribution Bot',
+        identifier: 'viral_link_hub_free_bot',
+        chatId: '',
+        url: 'https://t.me/viral_link_hub_free_bot',
+        isPrimary: true,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: 'demo-entity-3',
+        type: 'channel',
+        title: 'Official Viral Link Hub Channel',
+        identifier: 'virallinkhub_official',
+        chatId: '@virallinkhub_official',
+        url: 'https://t.me/virallinkhub_official',
+        isPrimary: true,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: 'demo-entity-4',
+        type: 'group',
+        title: 'VIP Community & Discussion Chat',
+        identifier: 'virallinkhub_chat',
+        chatId: '@virallinkhub_chat',
+        url: 'https://t.me/virallinkhub_chat',
+        isPrimary: false,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+      },
+    ],
+    missions: [
+      {
+        id: 'demo-mission-1',
+        type: 'join_channel',
+        title: 'Join Official Telegram Channel',
+        description: 'Subscribe to get cloud direct updates and bypass link limits.',
+        targetUrl: 'https://t.me/virallinkhub_official',
+        chatId: '@virallinkhub_official',
+        requiredCount: 1,
+        rewardAdCredits: 1,
+        rewardDescription: '+1 VIP Credit',
+        isActive: true,
+        orderIndex: 1,
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: 'demo-mission-2',
+        type: 'join_group',
+        title: 'Join VIP Discussion Community',
+        description: 'Connect with members and request new viral movies.',
+        targetUrl: 'https://t.me/virallinkhub_chat',
+        chatId: '@virallinkhub_chat',
+        requiredCount: 1,
+        rewardAdCredits: 1,
+        rewardDescription: '+1 VIP Credit',
+        isActive: true,
+        orderIndex: 2,
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: 'demo-mission-3',
+        type: 'start_bot',
+        title: 'Start Official Telegram Bot',
+        description: 'Activate cloud notification and link generator bot.',
+        targetUrl: 'https://t.me/viral_link_hub_free_bot?start=mission_bonus',
+        chatId: '',
+        requiredCount: 1,
+        rewardAdCredits: 1,
+        rewardDescription: '+1 VIP Credit',
+        isActive: true,
+        orderIndex: 3,
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: 'demo-mission-4',
+        type: 'invite_friends',
+        title: 'Invite 3 Friends via Referral Link',
+        description: 'Share your personal mini app link with 3 friends.',
+        targetUrl: 'https://t.me/viral_link_hub_free_bot/viral',
+        chatId: '',
+        requiredCount: 3,
+        rewardAdCredits: 3,
+        rewardDescription: '24h VIP Unlock',
+        isActive: true,
+        orderIndex: 4,
+        createdAt: new Date().toISOString(),
+      },
+    ],
+    userMissionProgress: new Map(),
+    campaigns: [
+      {
+        id: 'demo-camp-1',
+        campaignId: 'tiktok_viral',
+        name: 'TikTok Viral Clips',
+        description: 'Organic short-form clips and bio links on TikTok',
+        source: 'tiktok',
+        isActive: true,
+        clicksCount: 3420,
+        newUsersCount: 1240,
+        qualifiedCount: 480,
+        conversionRate: 36.2,
+        createdAt: new Date(Date.now() - 86400000 * 14).toISOString(),
+      },
+      {
+        id: 'demo-camp-2',
+        campaignId: 'tg_channel_promo',
+        name: 'Telegram Channel Sponsorships',
+        description: 'Partner cross-channel broadcast promotions',
+        source: 'telegram',
+        isActive: true,
+        clicksCount: 2890,
+        newUsersCount: 980,
+        qualifiedCount: 410,
+        conversionRate: 33.9,
+        createdAt: new Date(Date.now() - 86400000 * 7).toISOString(),
+      },
+      {
+        id: 'demo-camp-3',
+        campaignId: 'youtube_shorts',
+        name: 'YouTube Shorts Discovery',
+        description: 'Discovery traffic from YouTube video descriptions',
+        source: 'youtube',
+        isActive: true,
+        clicksCount: 1720,
+        newUsersCount: 610,
+        qualifiedCount: 210,
+        conversionRate: 35.5,
+        createdAt: new Date(Date.now() - 86400000 * 3).toISOString(),
+      },
+    ],
   };
 }
 

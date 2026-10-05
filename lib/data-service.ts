@@ -8,7 +8,12 @@ import {
   IAnalyticsEvent,
   IReferralLeaderboardEntry,
   IGrowthAnalytics,
+  ITelegramEntity,
+  IGrowthMission,
+  IUserMissionProgress,
+  ICampaign,
 } from './types';
+import { parseStartappParam } from './telegram-constants';
 
 /**
  * Authoritative Data Service — Powered by Supabase PostgreSQL
@@ -770,15 +775,10 @@ export async function syncTelegramUser({
   const userId = String(tgUser.id);
   const now = new Date().toISOString();
 
-  // Extract referral code if startParam formatted like ref_VLH1234
-  let incomingRefCode: string | null = null;
-  if (startParam) {
-    const match = startParam.match(/ref_([A-Za-z0-9_]+)/i);
-    if (match) incomingRefCode = match[1].toUpperCase();
-    else if (/^[A-Za-z0-9_]{3,12}$/.test(startParam)) {
-      incomingRefCode = startParam.toUpperCase();
-    }
-  }
+  // Extract referral code and campaign using startapp parser
+  const parsedStart = parseStartappParam(startParam);
+  const incomingRefCode = parsedStart.referralCode ? parsedStart.referralCode.toUpperCase() : null;
+  const campaignTag = parsedStart.campaign || (startParam && !parsedStart.referralCode ? startParam : 'direct');
 
   const client = getActiveClient();
   if (client) {
@@ -845,7 +845,7 @@ export async function syncTelegramUser({
           event: 'referral_open',
           user_id: userId,
           referral_code: validReferredByCode,
-          campaign: startParam || 'direct',
+          campaign: campaignTag,
           created_at: now,
         });
       }
@@ -1280,14 +1280,34 @@ export async function getGrowthAnalytics(
     else if (period === '30d') since = new Date(Date.now() - 30 * 86400000).toISOString();
     else if (period === 'all') since = new Date(0).toISOString();
 
-    const { data: events } = await client
-      .from('analytics_events')
-      .select('event, placement, content_id')
-      .gte('created_at', since);
+    const [
+      { data: events },
+      { count: totalUsersCount },
+      { count: newUsersCount },
+      { count: activeUsersCount },
+      { count: qualifiedCount },
+      { count: activePremiumCount },
+    ] = await Promise.all([
+      client.from('analytics_events').select('event, placement, content_id, campaign, source').gte('created_at', since),
+      client.from('users').select('*', { count: 'exact', head: true }),
+      client.from('users').select('*', { count: 'exact', head: true }).gte('first_seen_at', since),
+      client.from('users').select('*', { count: 'exact', head: true }).gte('last_seen_at', since),
+      client.from('referrals').select('*', { count: 'exact', head: true }).eq('status', 'qualified').gte('created_at', since),
+      client.from('users').select('*', { count: 'exact', head: true }).gt('premium_until', new Date().toISOString()),
+    ]);
 
     const eventCounts: Record<string, number> = {};
+    const campaignCounts: Record<string, number> = {};
+    const sourceCounts: Record<string, number> = {};
+
     (events || []).forEach((e: any) => {
       eventCounts[e.event] = (eventCounts[e.event] || 0) + 1;
+      if (e.campaign && e.campaign !== 'direct') {
+        campaignCounts[e.campaign] = (campaignCounts[e.campaign] || 0) + 1;
+      }
+      if (e.source) {
+        sourceCounts[e.source] = (sourceCounts[e.source] || 0) + 1;
+      }
     });
 
     const impressions = eventCounts['ad_impression'] || 0;
@@ -1298,22 +1318,37 @@ export async function getGrowthAnalytics(
     const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
     const unlockRate = views > 0 ? (unlocks / views) * 100 : 0;
 
+    const totalUsers = totalUsersCount || 0;
+    const newUsers = newUsersCount || 0;
+    const returningUsers = Math.max(0, totalUsers - newUsers);
+    const dailyActive = activeUsersCount || 0;
+
+    const topCampaigns = Object.entries(campaignCounts)
+      .map(([campaign, count]) => ({ campaign, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    const topReferralSources = Object.entries(sourceCounts)
+      .map(([source, count]) => ({ source, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
     return {
       period,
       mode: 'production',
-      totalUsers: 1,
-      newUsers: 1,
-      returningUsers: 0,
-      dailyActiveUsers: 1,
+      totalUsers,
+      newUsers,
+      returningUsers,
+      dailyActiveUsers: dailyActive,
       botStarts: eventCounts['bot_start'] || 0,
       miniAppOpens: eventCounts['app_open'] || 0,
       channelClicks: eventCounts['channel_click'] || 0,
-      channelVerifications: 0,
+      channelVerifications: eventCounts['channel_verification'] || 0,
       sharesCount: eventCounts['share_click'] || 0,
       referralOpens: eventCounts['referral_open'] || 0,
-      qualifiedReferrals: eventCounts['qualified_referral'] || 0,
+      qualifiedReferrals: qualifiedCount || eventCounts['qualified_referral'] || 0,
       premiumRewardsClaimed: eventCounts['premium_reward'] || 0,
-      activePremiumUsers: 0,
+      activePremiumUsers: activePremiumCount || 0,
       adImpressions: impressions,
       adClicks: clicks,
       adCompletions: completions,
@@ -1323,8 +1358,8 @@ export async function getGrowthAnalytics(
       topPlacement: 'Unlock Action Modal',
       topContent: [],
       topSharedContent: [],
-      topReferralSources: [],
-      topCampaigns: [],
+      topReferralSources,
+      topCampaigns,
       leaderboard: await getReferralLeaderboard(5),
     };
   }
@@ -1374,3 +1409,565 @@ export async function getGrowthAnalytics(
     leaderboard: await getReferralLeaderboard(5),
   };
 }
+
+// ============================================================================
+// TELEGRAM ENTITIES (Channels, Groups, Bots, and Mini Apps)
+// ============================================================================
+
+export async function fetchTelegramEntities(): Promise<ITelegramEntity[]> {
+  const client = getActiveClient();
+  if (client) {
+    const { data, error } = await client
+      .from('telegram_entities')
+      .select('*')
+      .order('is_primary', { ascending: false })
+      .order('type', { ascending: true });
+
+    if (error) {
+      console.error('[Supabase fetchTelegramEntities error]:', error.message);
+      if (isProduction()) throw error;
+      return demoStore.entities;
+    }
+
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      type: row.type,
+      title: row.title,
+      identifier: row.identifier,
+      chatId: row.chat_id || '',
+      url: row.url,
+      isPrimary: Boolean(row.is_primary),
+      isActive: Boolean(row.is_active),
+      createdAt: row.created_at,
+    }));
+  }
+
+  return demoStore.entities;
+}
+
+export async function createTelegramEntity(entity: Omit<ITelegramEntity, 'id'>): Promise<ITelegramEntity> {
+  const client = getActiveClient();
+  if (client) {
+    const { data, error } = await client
+      .from('telegram_entities')
+      .insert({
+        type: entity.type,
+        title: entity.title,
+        identifier: entity.identifier,
+        chat_id: entity.chatId || '',
+        url: entity.url,
+        is_primary: Boolean(entity.isPrimary),
+        is_active: Boolean(entity.isActive),
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[Supabase createTelegramEntity error]:', error.message);
+      throw error;
+    }
+
+    return {
+      id: data.id,
+      type: data.type,
+      title: data.title,
+      identifier: data.identifier,
+      chatId: data.chat_id,
+      url: data.url,
+      isPrimary: data.is_primary,
+      isActive: data.is_active,
+      createdAt: data.created_at,
+    };
+  }
+
+  const newEntity: ITelegramEntity = {
+    ...entity,
+    id: `demo-entity-${Date.now()}`,
+    createdAt: new Date().toISOString(),
+  };
+  demoStore.entities.unshift(newEntity);
+  return newEntity;
+}
+
+export async function modifyTelegramEntity(id: string, updates: Partial<ITelegramEntity>): Promise<ITelegramEntity | null> {
+  const client = getActiveClient();
+  if (client) {
+    const dbPayload: Record<string, any> = {};
+    if (updates.type !== undefined) dbPayload.type = updates.type;
+    if (updates.title !== undefined) dbPayload.title = updates.title;
+    if (updates.identifier !== undefined) dbPayload.identifier = updates.identifier;
+    if (updates.chatId !== undefined) dbPayload.chat_id = updates.chatId;
+    if (updates.url !== undefined) dbPayload.url = updates.url;
+    if (updates.isPrimary !== undefined) dbPayload.is_primary = updates.isPrimary;
+    if (updates.isActive !== undefined) dbPayload.is_active = updates.isActive;
+
+    const { data, error } = await client
+      .from('telegram_entities')
+      .update(dbPayload)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[Supabase modifyTelegramEntity error]:', error.message);
+      throw error;
+    }
+
+    return {
+      id: data.id,
+      type: data.type,
+      title: data.title,
+      identifier: data.identifier,
+      chatId: data.chat_id,
+      url: data.url,
+      isPrimary: data.is_primary,
+      isActive: data.is_active,
+      createdAt: data.created_at,
+    };
+  }
+
+  const idx = demoStore.entities.findIndex((e) => e.id === id);
+  if (idx !== -1) {
+    demoStore.entities[idx] = { ...demoStore.entities[idx], ...updates };
+    return demoStore.entities[idx];
+  }
+  return null;
+}
+
+export async function removeTelegramEntity(id: string): Promise<boolean> {
+  const client = getActiveClient();
+  if (client) {
+    const { error } = await client.from('telegram_entities').delete().eq('id', id);
+    if (error) {
+      console.error('[Supabase removeTelegramEntity error]:', error.message);
+      throw error;
+    }
+    return true;
+  }
+
+  const initialLen = demoStore.entities.length;
+  demoStore.entities = demoStore.entities.filter((e) => e.id !== id);
+  return demoStore.entities.length < initialLen;
+}
+
+// ============================================================================
+// GROWTH MISSIONS (Configurable Viral Tasks)
+// ============================================================================
+
+export async function fetchGrowthMissions(activeOnly = false): Promise<IGrowthMission[]> {
+  const client = getActiveClient();
+  if (client) {
+    let query = client.from('growth_missions').select('*').order('order_index', { ascending: true });
+    if (activeOnly) {
+      query = query.eq('is_active', true);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      console.error('[Supabase fetchGrowthMissions error]:', error.message);
+      if (isProduction()) throw error;
+      return demoStore.missions;
+    }
+
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      type: row.type,
+      title: row.title,
+      description: row.description || '',
+      targetUrl: row.target_url,
+      chatId: row.chat_id || '',
+      requiredCount: row.required_count || 1,
+      rewardAdCredits: row.reward_ad_credits || 1,
+      rewardDescription: row.reward_description || '+1 VIP Credit',
+      isActive: Boolean(row.is_active),
+      orderIndex: row.order_index || 0,
+      createdAt: row.created_at,
+    }));
+  }
+
+  return activeOnly ? demoStore.missions.filter((m) => m.isActive) : demoStore.missions;
+}
+
+export async function createGrowthMission(mission: Omit<IGrowthMission, 'id'>): Promise<IGrowthMission> {
+  const client = getActiveClient();
+  if (client) {
+    const { data, error } = await client
+      .from('growth_missions')
+      .insert({
+        type: mission.type,
+        title: mission.title,
+        description: mission.description || '',
+        target_url: mission.targetUrl,
+        chat_id: mission.chatId || '',
+        required_count: mission.requiredCount || 1,
+        reward_ad_credits: mission.rewardAdCredits || 1,
+        reward_description: mission.rewardDescription || '+1 VIP Credit',
+        is_active: Boolean(mission.isActive),
+        order_index: mission.orderIndex || 0,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[Supabase createGrowthMission error]:', error.message);
+      throw error;
+    }
+
+    return {
+      id: data.id,
+      type: data.type,
+      title: data.title,
+      description: data.description,
+      targetUrl: data.target_url,
+      chatId: data.chat_id,
+      requiredCount: data.required_count,
+      rewardAdCredits: data.reward_ad_credits,
+      rewardDescription: data.reward_description,
+      isActive: data.is_active,
+      orderIndex: data.order_index,
+      createdAt: data.created_at,
+    };
+  }
+
+  const newMission: IGrowthMission = {
+    ...mission,
+    id: `demo-mission-${Date.now()}`,
+    createdAt: new Date().toISOString(),
+  };
+  demoStore.missions.push(newMission);
+  return newMission;
+}
+
+export async function modifyGrowthMission(id: string, updates: Partial<IGrowthMission>): Promise<IGrowthMission | null> {
+  const client = getActiveClient();
+  if (client) {
+    const dbPayload: Record<string, any> = {};
+    if (updates.type !== undefined) dbPayload.type = updates.type;
+    if (updates.title !== undefined) dbPayload.title = updates.title;
+    if (updates.description !== undefined) dbPayload.description = updates.description;
+    if (updates.targetUrl !== undefined) dbPayload.target_url = updates.targetUrl;
+    if (updates.chatId !== undefined) dbPayload.chat_id = updates.chatId;
+    if (updates.requiredCount !== undefined) dbPayload.required_count = updates.requiredCount;
+    if (updates.rewardAdCredits !== undefined) dbPayload.reward_ad_credits = updates.rewardAdCredits;
+    if (updates.rewardDescription !== undefined) dbPayload.reward_description = updates.rewardDescription;
+    if (updates.isActive !== undefined) dbPayload.is_active = updates.isActive;
+    if (updates.orderIndex !== undefined) dbPayload.order_index = updates.orderIndex;
+
+    const { data, error } = await client
+      .from('growth_missions')
+      .update(dbPayload)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[Supabase modifyGrowthMission error]:', error.message);
+      throw error;
+    }
+
+    return {
+      id: data.id,
+      type: data.type,
+      title: data.title,
+      description: data.description,
+      targetUrl: data.target_url,
+      chatId: data.chat_id,
+      requiredCount: data.required_count,
+      rewardAdCredits: data.reward_ad_credits,
+      rewardDescription: data.reward_description,
+      isActive: data.is_active,
+      orderIndex: data.order_index,
+      createdAt: data.created_at,
+    };
+  }
+
+  const idx = demoStore.missions.findIndex((m) => m.id === id);
+  if (idx !== -1) {
+    demoStore.missions[idx] = { ...demoStore.missions[idx], ...updates };
+    return demoStore.missions[idx];
+  }
+  return null;
+}
+
+export async function removeGrowthMission(id: string): Promise<boolean> {
+  const client = getActiveClient();
+  if (client) {
+    const { error } = await client.from('growth_missions').delete().eq('id', id);
+    if (error) {
+      console.error('[Supabase removeGrowthMission error]:', error.message);
+      throw error;
+    }
+    return true;
+  }
+
+  const initialLen = demoStore.missions.length;
+  demoStore.missions = demoStore.missions.filter((m) => m.id !== id);
+  return demoStore.missions.length < initialLen;
+}
+
+// ============================================================================
+// USER MISSION PROGRESS & VERIFICATION
+// ============================================================================
+
+export async function fetchUserMissionProgress(userId: string): Promise<Record<string, IUserMissionProgress>> {
+  const client = getActiveClient();
+  if (client) {
+    const { data, error } = await client
+      .from('user_mission_progress')
+      .select('*')
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('[Supabase fetchUserMissionProgress error]:', error.message);
+      return {};
+    }
+
+    const progressMap: Record<string, IUserMissionProgress> = {};
+    (data || []).forEach((row: any) => {
+      progressMap[row.mission_id] = {
+        missionId: row.mission_id,
+        status: row.status,
+        progressCount: row.progress_count,
+        completedAt: row.completed_at,
+        verifiedVia: row.verified_via,
+      };
+    });
+    return progressMap;
+  }
+
+  const demoList = demoStore.userMissionProgress.get(userId) || [];
+  const map: Record<string, IUserMissionProgress> = {};
+  demoList.forEach((p) => {
+    map[p.missionId] = p;
+  });
+  return map;
+}
+
+export async function completeUserMission(
+  userId: string,
+  missionId: string,
+  verifiedVia: 'server_api' | 'client' | 'referral_system' = 'client'
+): Promise<{ success: boolean; message: string; adCreditsAwarded: number }> {
+  const now = new Date().toISOString();
+  const missions = await fetchGrowthMissions();
+  const mission = missions.find((m) => m.id === missionId);
+
+  if (!mission) {
+    return { success: false, message: 'Mission not found.', adCreditsAwarded: 0 };
+  }
+
+  const client = getActiveClient();
+  if (client) {
+    // Check if already completed
+    const { data: existing } = await client
+      .from('user_mission_progress')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('mission_id', missionId)
+      .maybeSingle();
+
+    if (existing && existing.status === 'completed') {
+      return { success: true, message: 'Mission already completed!', adCreditsAwarded: 0 };
+    }
+
+    // Insert or update progress
+    await client
+      .from('user_mission_progress')
+      .upsert({
+        user_id: userId,
+        mission_id: missionId,
+        status: 'completed',
+        progress_count: mission.requiredCount,
+        completed_at: now,
+        verified_via: verifiedVia,
+      });
+
+    // Award VIP ad credits
+    const rewardCredits = mission.rewardAdCredits || 1;
+    const { data: user } = await client
+      .from('users')
+      .select('ad_actions_completed')
+      .eq('telegram_user_id', userId)
+      .maybeSingle();
+
+    const newAdCount = (user?.ad_actions_completed || 0) + rewardCredits;
+    await client
+      .from('users')
+      .update({ ad_actions_completed: newAdCount })
+      .eq('telegram_user_id', userId);
+
+    // Track analytics event
+    await client.from('analytics_events').insert({
+      event: 'channel_verification',
+      user_id: userId,
+      placement: mission.type,
+      metadata: { missionTitle: mission.title, rewardCredits, verifiedVia },
+      created_at: now,
+    });
+
+    return {
+      success: true,
+      message: `🎉 Mission Completed! You received ${rewardCredits} VIP credit(s).`,
+      adCreditsAwarded: rewardCredits,
+    };
+  }
+
+  // Demo fallback
+  let progressList = demoStore.userMissionProgress.get(userId) || [];
+  const existingProg = progressList.find((p) => p.missionId === missionId);
+  if (existingProg) {
+    existingProg.status = 'completed';
+    existingProg.completedAt = now;
+  } else {
+    progressList.push({
+      missionId,
+      status: 'completed',
+      progressCount: mission.requiredCount,
+      completedAt: now,
+      verifiedVia,
+    });
+  }
+  demoStore.userMissionProgress.set(userId, progressList);
+
+  const demoUser = demoStore.users.get(userId);
+  if (demoUser) {
+    demoUser.adActionsCompleted = (demoUser.adActionsCompleted || 0) + mission.rewardAdCredits;
+  }
+
+  return {
+    success: true,
+    message: `🎉 Mission Completed! You received ${mission.rewardAdCredits} VIP credit(s).`,
+    adCreditsAwarded: mission.rewardAdCredits,
+  };
+}
+
+// ============================================================================
+// CAMPAIGNS TRACKING & MANAGEMENT
+// ============================================================================
+
+export async function fetchCampaignsWithStats(): Promise<ICampaign[]> {
+  const client = getActiveClient();
+  if (client) {
+    const { data: campaigns, error } = await client
+      .from('campaigns')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('[Supabase fetchCampaigns error]:', error.message);
+      if (isProduction()) throw error;
+      return demoStore.campaigns;
+    }
+
+    // Query events to compute stats per campaign
+    const { data: events } = await client
+      .from('analytics_events')
+      .select('event, campaign, user_id');
+
+    const statsMap: Record<string, { clicks: number; newUsers: Set<string>; qualified: number }> = {};
+
+    (campaigns || []).forEach((c: any) => {
+      statsMap[c.campaign_id] = { clicks: 0, newUsers: new Set(), qualified: 0 };
+    });
+
+    (events || []).forEach((e: any) => {
+      if (e.campaign && statsMap[e.campaign]) {
+        statsMap[e.campaign].clicks += 1;
+        if (e.user_id) {
+          statsMap[e.campaign].newUsers.add(e.user_id);
+        }
+        if (e.event === 'qualified_referral') {
+          statsMap[e.campaign].qualified += 1;
+        }
+      }
+    });
+
+    return (campaigns || []).map((row: any) => {
+      const stats = statsMap[row.campaign_id] || { clicks: 0, newUsers: new Set(), qualified: 0 };
+      const newCount = stats.newUsers.size;
+      const conv = stats.clicks > 0 ? (newCount / stats.clicks) * 100 : 0;
+
+      return {
+        id: row.id,
+        campaignId: row.campaign_id,
+        name: row.name,
+        description: row.description || '',
+        source: row.source || 'telegram',
+        isActive: Boolean(row.is_active),
+        clicksCount: stats.clicks,
+        newUsersCount: newCount,
+        qualifiedCount: stats.qualified,
+        conversionRate: Number(conv.toFixed(1)),
+        createdAt: row.created_at,
+      };
+    });
+  }
+
+  return demoStore.campaigns;
+}
+
+export async function createCampaign(campaign: Omit<ICampaign, 'id'>): Promise<ICampaign> {
+  const client = getActiveClient();
+  if (client) {
+    const cleanId = campaign.campaignId.toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+    const { data, error } = await client
+      .from('campaigns')
+      .insert({
+        campaign_id: cleanId,
+        name: campaign.name,
+        description: campaign.description || '',
+        source: campaign.source || 'telegram',
+        is_active: Boolean(campaign.isActive),
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[Supabase createCampaign error]:', error.message);
+      throw error;
+    }
+
+    return {
+      id: data.id,
+      campaignId: data.campaign_id,
+      name: data.name,
+      description: data.description,
+      source: data.source,
+      isActive: data.is_active,
+      clicksCount: 0,
+      newUsersCount: 0,
+      qualifiedCount: 0,
+      conversionRate: 0,
+      createdAt: data.created_at,
+    };
+  }
+
+  const newCamp: ICampaign = {
+    ...campaign,
+    id: `demo-camp-${Date.now()}`,
+    clicksCount: 0,
+    newUsersCount: 0,
+    qualifiedCount: 0,
+    conversionRate: 0,
+    createdAt: new Date().toISOString(),
+  };
+  demoStore.campaigns.unshift(newCamp);
+  return newCamp;
+}
+
+export async function removeCampaign(id: string): Promise<boolean> {
+  const client = getActiveClient();
+  if (client) {
+    const { error } = await client.from('campaigns').delete().eq('id', id);
+    if (error) {
+      console.error('[Supabase removeCampaign error]:', error.message);
+      throw error;
+    }
+    return true;
+  }
+
+  const initialLen = demoStore.campaigns.length;
+  demoStore.campaigns = demoStore.campaigns.filter((c) => c.id !== id);
+  return demoStore.campaigns.length < initialLen;
+}
+

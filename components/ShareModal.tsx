@@ -11,6 +11,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { IVideo, IUserProfile, ITelegramUser } from '@/lib/types';
+import { buildTelegramReferralLink } from '@/lib/telegram-constants';
 
 interface ShareModalProps {
   video: IVideo | null;
@@ -27,16 +28,13 @@ export default function ShareModal({
   onClose,
   telegramUser,
   userProfile,
-  telegramChannelUrl = 'https://t.me/virallinkhub_official',
 }: ShareModalProps) {
   const [isCopied, setIsCopied] = useState(false);
 
   if (!isOpen || !video) return null;
 
-  const botUsername = telegramChannelUrl.split('/').pop()?.replace(/^@/, '') || 'virallinkhub_official';
   const refCode = userProfile?.referralCode || 'VIP';
-  const startParam = `c_${video._id}_ref_${refCode}`;
-  const shareDeepLink = `https://t.me/${botUsername}?startapp=${startParam}`;
+  const shareDeepLink = buildTelegramReferralLink(refCode, video._id);
 
   const shareText = `🎬 Watch "${video.title}" in 1080p HD on Viral Link Hub Telegram Mini App! Complete sponsor task to unlock full speed stream.`;
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserProfile, fetchSettings } from '@/lib/data-service';
 import { parseTelegramUser } from '@/lib/telegram-verify';
+import { buildTelegramReferralLink } from '@/lib/telegram-constants';
 
 export async function GET(req: NextRequest) {
   try {
@@ -34,9 +35,8 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Generate standard bot deep link
-    const botUsername = settings.telegramChannelUrl?.split('/').pop()?.replace(/^@/, '') || 'virallinkhub_bot';
-    const referralDeepLink = `https://t.me/${botUsername}?startapp=ref_${profile.referralCode}`;
+    // Generate authoritative Primary Mini App referral deep link
+    const referralDeepLink = buildTelegramReferralLink(profile.referralCode);
 
     return NextResponse.json({
       success: true,

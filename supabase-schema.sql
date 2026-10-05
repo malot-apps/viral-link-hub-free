@@ -319,3 +319,159 @@ CREATE POLICY "Service Role Delete Video Images" ON storage.objects
     bucket_id = 'video-images' AND (auth.role() = 'service_role' OR current_user = 'postgres')
   );
 
+-- ============================================================================
+-- 11. TELEGRAM ENTITIES (Channels, Groups, Bots, and Mini Apps)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS telegram_entities (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  type TEXT NOT NULL CHECK (type IN ('channel', 'group', 'bot', 'miniapp')),
+  title TEXT NOT NULL,
+  identifier TEXT NOT NULL,
+  chat_id TEXT,
+  url TEXT NOT NULL,
+  is_primary BOOLEAN DEFAULT false,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_entities_type ON telegram_entities(type);
+CREATE INDEX IF NOT EXISTS idx_entities_active ON telegram_entities(is_active);
+
+-- Seed Primary Mini App & Core Entities
+INSERT INTO telegram_entities (type, title, identifier, chat_id, url, is_primary, is_active)
+SELECT 'miniapp', 'Viral Link Hub Primary Mini App', 'viral_link_hub_free_bot/viral', '', 'https://t.me/viral_link_hub_free_bot/viral', true, true
+WHERE NOT EXISTS (SELECT 1 FROM telegram_entities WHERE identifier = 'viral_link_hub_free_bot/viral');
+
+INSERT INTO telegram_entities (type, title, identifier, chat_id, url, is_primary, is_active)
+SELECT 'bot', 'Viral Link Hub Distribution Bot', 'viral_link_hub_free_bot', '', 'https://t.me/viral_link_hub_free_bot', true, true
+WHERE NOT EXISTS (SELECT 1 FROM telegram_entities WHERE identifier = 'viral_link_hub_free_bot');
+
+INSERT INTO telegram_entities (type, title, identifier, chat_id, url, is_primary, is_active)
+SELECT 'channel', 'Official Viral Link Hub Channel', 'virallinkhub_official', '@virallinkhub_official', 'https://t.me/virallinkhub_official', true, true
+WHERE NOT EXISTS (SELECT 1 FROM telegram_entities WHERE identifier = 'virallinkhub_official');
+
+INSERT INTO telegram_entities (type, title, identifier, chat_id, url, is_primary, is_active)
+SELECT 'group', 'VIP Community & Discussion Chat', 'virallinkhub_chat', '@virallinkhub_chat', 'https://t.me/virallinkhub_chat', false, true
+WHERE NOT EXISTS (SELECT 1 FROM telegram_entities WHERE identifier = 'virallinkhub_chat');
+
+-- ============================================================================
+-- 12. GROWTH MISSIONS (Configurable Viral Tasks)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS growth_missions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  type TEXT NOT NULL CHECK (type IN ('join_channel', 'join_group', 'start_bot', 'open_miniapp', 'invite_friends')),
+  title TEXT NOT NULL,
+  description TEXT DEFAULT '',
+  target_url TEXT NOT NULL,
+  chat_id TEXT,
+  required_count INTEGER DEFAULT 1,
+  reward_ad_credits INTEGER DEFAULT 1,
+  reward_description TEXT DEFAULT '+1 VIP Credit',
+  is_active BOOLEAN DEFAULT true,
+  order_index INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_missions_active ON growth_missions(is_active);
+
+-- Seed Starter Growth Missions
+INSERT INTO growth_missions (type, title, description, target_url, chat_id, required_count, reward_ad_credits, reward_description, is_active, order_index)
+SELECT 'join_channel', 'Join Official Telegram Channel', 'Subscribe to get cloud direct updates and bypass link limits.', 'https://t.me/virallinkhub_official', '@virallinkhub_official', 1, 1, '+1 VIP Credit', true, 1
+WHERE NOT EXISTS (SELECT 1 FROM growth_missions WHERE title = 'Join Official Telegram Channel');
+
+INSERT INTO growth_missions (type, title, description, target_url, chat_id, required_count, reward_ad_credits, reward_description, is_active, order_index)
+SELECT 'join_group', 'Join VIP Discussion Community', 'Connect with members and request new viral movies.', 'https://t.me/virallinkhub_chat', '@virallinkhub_chat', 1, 1, '+1 VIP Credit', true, 2
+WHERE NOT EXISTS (SELECT 1 FROM growth_missions WHERE title = 'Join VIP Discussion Community');
+
+INSERT INTO growth_missions (type, title, description, target_url, chat_id, required_count, reward_ad_credits, reward_description, is_active, order_index)
+SELECT 'start_bot', 'Start Official Telegram Bot', 'Activate the cloud notification and link generator bot.', 'https://t.me/viral_link_hub_free_bot?start=mission_bonus', '', 1, 1, '+1 VIP Credit', true, 3
+WHERE NOT EXISTS (SELECT 1 FROM growth_missions WHERE title = 'Start Official Telegram Bot');
+
+INSERT INTO growth_missions (type, title, description, target_url, chat_id, required_count, reward_ad_credits, reward_description, is_active, order_index)
+SELECT 'invite_friends', 'Invite 3 Friends via Referral Link', 'Share your personal mini app link with friends.', 'https://t.me/viral_link_hub_free_bot/viral', '', 3, 3, '24h VIP Unlock', true, 4
+WHERE NOT EXISTS (SELECT 1 FROM growth_missions WHERE title = 'Invite 3 Friends via Referral Link');
+
+-- ============================================================================
+-- 13. USER MISSION PROGRESS
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS user_mission_progress (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL,
+  mission_id UUID NOT NULL,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'claimed')),
+  progress_count INTEGER DEFAULT 0,
+  completed_at TIMESTAMPTZ,
+  verified_via TEXT DEFAULT 'client',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT unique_user_mission UNIQUE (user_id, mission_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_progress_user ON user_mission_progress(user_id);
+
+-- ============================================================================
+-- 14. CAMPAIGNS (Marketing & Traffic Acquisition Tracking)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS campaigns (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  campaign_id TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  description TEXT DEFAULT '',
+  source TEXT DEFAULT 'telegram',
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_campaigns_id ON campaigns(campaign_id);
+
+-- Seed Default Campaigns
+INSERT INTO campaigns (campaign_id, name, description, source, is_active)
+SELECT 'tiktok_viral', 'TikTok Viral Clips', 'Organic short-form clips and bio links on TikTok', 'tiktok', true
+WHERE NOT EXISTS (SELECT 1 FROM campaigns WHERE campaign_id = 'tiktok_viral');
+
+INSERT INTO campaigns (campaign_id, name, description, source, is_active)
+SELECT 'tg_channel_promo', 'Telegram Channel Sponsorships', 'Partner cross-channel broadcast promotions', 'telegram', true
+WHERE NOT EXISTS (SELECT 1 FROM campaigns WHERE campaign_id = 'tg_channel_promo');
+
+INSERT INTO campaigns (campaign_id, name, description, source, is_active)
+SELECT 'youtube_shorts', 'YouTube Shorts Traffic', 'Discovery traffic from YouTube video descriptions', 'youtube', true
+WHERE NOT EXISTS (SELECT 1 FROM campaigns WHERE campaign_id = 'youtube_shorts');
+
+-- ============================================================================
+-- 15. RLS POLICIES FOR GROWTH TABLES
+-- ============================================================================
+ALTER TABLE telegram_entities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE growth_missions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_mission_progress ENABLE ROW LEVEL SECURITY;
+ALTER TABLE campaigns ENABLE ROW LEVEL SECURITY;
+
+-- Public can read active entities, missions, and campaigns
+DROP POLICY IF EXISTS "Public Read Entities" ON telegram_entities;
+CREATE POLICY "Public Read Entities" ON telegram_entities FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Public Read Missions" ON growth_missions;
+CREATE POLICY "Public Read Missions" ON growth_missions FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Public Read Campaigns" ON campaigns;
+CREATE POLICY "Public Read Campaigns" ON campaigns FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Public Read User Missions" ON user_mission_progress;
+CREATE POLICY "Public Read User Missions" ON user_mission_progress FOR SELECT USING (true);
+
+-- Service Role Full Privileges
+DROP POLICY IF EXISTS "Service Role Full Entities" ON telegram_entities;
+CREATE POLICY "Service Role Full Entities" ON telegram_entities
+  FOR ALL USING (auth.role() = 'service_role' OR current_user = 'postgres');
+
+DROP POLICY IF EXISTS "Service Role Full Missions" ON growth_missions;
+CREATE POLICY "Service Role Full Missions" ON growth_missions
+  FOR ALL USING (auth.role() = 'service_role' OR current_user = 'postgres');
+
+DROP POLICY IF EXISTS "Service Role Full User Missions" ON user_mission_progress;
+CREATE POLICY "Service Role Full User Missions" ON user_mission_progress
+  FOR ALL USING (auth.role() = 'service_role' OR current_user = 'postgres');
+
+DROP POLICY IF EXISTS "Service Role Full Campaigns" ON campaigns;
+CREATE POLICY "Service Role Full Campaigns" ON campaigns
+  FOR ALL USING (auth.role() = 'service_role' OR current_user = 'postgres');
+
+

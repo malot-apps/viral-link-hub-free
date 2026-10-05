@@ -188,6 +188,55 @@ export interface IAnalytics {
   activeWindowMinutes: number;
 }
 
+export interface ITelegramEntity {
+  id: string;
+  type: 'channel' | 'group' | 'bot' | 'miniapp';
+  title: string;
+  identifier: string;
+  chatId?: string;
+  url: string;
+  isPrimary: boolean;
+  isActive: boolean;
+  createdAt?: string;
+}
+
+export interface IGrowthMission {
+  id: string;
+  type: 'join_channel' | 'join_group' | 'start_bot' | 'open_miniapp' | 'invite_friends';
+  title: string;
+  description: string;
+  targetUrl: string;
+  chatId?: string;
+  requiredCount: number;
+  rewardAdCredits: number;
+  rewardDescription: string;
+  isActive: boolean;
+  orderIndex: number;
+  createdAt?: string;
+}
+
+export interface IUserMissionProgress {
+  missionId: string;
+  status: 'pending' | 'completed' | 'claimed';
+  progressCount: number;
+  completedAt?: string;
+  verifiedVia: 'server_api' | 'client' | 'referral_system';
+}
+
+export interface ICampaign {
+  id: string;
+  campaignId: string;
+  name: string;
+  description: string;
+  source: string;
+  isActive: boolean;
+  clicksCount?: number;
+  newUsersCount?: number;
+  qualifiedCount?: number;
+  conversionRate?: number;
+  createdAt?: string;
+}
+
 export interface ITelegramUser {
   id: number | string;
   first_name: string;
