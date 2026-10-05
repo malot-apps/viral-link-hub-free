@@ -21,8 +21,7 @@ export const getAppMode = (): AppMode => {
   // Default based on presence of production Supabase credentials
   const hasSupabaseUrl = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL?.trim());
   const hasSupabaseKey = Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ||
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() &&
     process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
   );
 
@@ -50,12 +49,12 @@ export function validateProductionConfig(): ProductionConfigValidation {
     missing.push('NEXT_PUBLIC_SUPABASE_URL');
   }
 
-  const hasPublishable = Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim()
-  );
-  if (!hasPublishable && !process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim()) {
     missing.push('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY');
+  }
+
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) {
+    missing.push('SUPABASE_SERVICE_ROLE_KEY');
   }
 
   if (!process.env.ADMIN_USERNAME?.trim()) {
@@ -66,10 +65,7 @@ export function validateProductionConfig(): ProductionConfigValidation {
     missing.push('ADMIN_PASSWORD');
   }
 
-  const hasSessionSecret = Boolean(
-    process.env.ADMIN_SESSION_SECRET?.trim() ||
-    process.env.JWT_SECRET?.trim()
-  );
+  const hasSessionSecret = Boolean(process.env.ADMIN_SESSION_SECRET?.trim());
   if (!hasSessionSecret) {
     missing.push('ADMIN_SESSION_SECRET');
   }
@@ -88,15 +84,7 @@ export const config = {
     return process.env.NEXT_PUBLIC_SUPABASE_URL || '';
   },
   get supabasePublishableKey(): string {
-    return (
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-      ''
-    );
-  },
-  // Alias for backward compatibility
-  get supabaseAnonKey(): string {
-    return this.supabasePublishableKey;
+    return process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '';
   },
   get supabaseServiceRoleKey(): string {
     return process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -104,7 +92,6 @@ export const config = {
   get adminSessionSecret(): string {
     return (
       process.env.ADMIN_SESSION_SECRET ||
-      process.env.JWT_SECRET ||
       (isDemo() ? 'demo_admin_session_secret_2026' : '')
     );
   },

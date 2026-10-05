@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { User as UserIcon, Sparkles, Shield } from 'lucide-react';
+import { User as UserIcon, Sparkles } from 'lucide-react';
 import { ITelegramUser, IUserProfile } from '@/lib/types';
 
 interface NavbarProps {
@@ -12,9 +12,9 @@ interface NavbarProps {
   telegramUser: ITelegramUser;
   userProfile?: IUserProfile | null;
   onOpenUserModal: () => void;
-  onOpenAdmin: () => void;
+  onOpenAdmin?: () => void;
   onOpenPremium?: () => void;
-  isAdminLoggedIn: boolean;
+  isAdminLoggedIn?: boolean;
   liveUsersCount: number;
 }
 
@@ -102,16 +102,6 @@ export default function Navbar({
               </span>
             </button>
           )}
-
-          {/* Admin Dashboard Link */}
-          <Link
-            href="/admin"
-            className="flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-1.5 text-xs text-red-300 hover:bg-red-500/20 transition-colors font-medium"
-            title="Open Dedicated Admin Dashboard"
-          >
-            <Shield className="h-3.5 w-3.5 text-[#e50914]" />
-            <span className="hidden sm:inline">Admin</span>
-          </Link>
 
           {/* Telegram User Identity Button */}
           <button

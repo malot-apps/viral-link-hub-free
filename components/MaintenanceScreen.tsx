@@ -1,17 +1,16 @@
 'use client';
 
 import React from 'react';
-import { Wrench, Shield, ArrowRight } from 'lucide-react';
+import { Wrench, ArrowRight } from 'lucide-react';
 
 interface MaintenanceScreenProps {
   appName: string;
-  onOpenAdmin: () => void;
+  onOpenAdmin?: () => void;
   onBypass: () => void;
 }
 
 export default function MaintenanceScreen({
   appName,
-  onOpenAdmin,
   onBypass,
 }: MaintenanceScreenProps) {
   return (
@@ -37,14 +36,6 @@ export default function MaintenanceScreen({
           >
             <span>Preview Mode (Bypass Notice)</span>
             <ArrowRight className="h-3.5 w-3.5" />
-          </button>
-
-          <button
-            onClick={onOpenAdmin}
-            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-white/10 px-4 py-2 text-xs text-zinc-400 hover:text-white"
-          >
-            <Shield className="h-3.5 w-3.5" />
-            <span>Admin Control Login</span>
           </button>
         </div>
       </div>

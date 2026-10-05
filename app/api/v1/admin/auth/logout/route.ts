@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminSession, ADMIN_COOKIE_NAME } from '@/lib/admin-auth';
 import { logAdminAction } from '@/lib/data-service';
+import { isProduction } from '@/lib/config';
 
 export async function POST(req: NextRequest) {
   const admin = verifyAdminSession(req);
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
   // Clear HttpOnly session cookie
   response.cookies.set(ADMIN_COOKIE_NAME, '', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: isProduction(),
     sameSite: 'lax',
     path: '/',
     expires: new Date(0),

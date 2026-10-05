@@ -8,7 +8,6 @@ import HeroFeatured from '@/components/HeroFeatured';
 import VideoRow from '@/components/VideoRow';
 import UnlockModal from '@/components/UnlockModal';
 import TelegramUserSelector from '@/components/TelegramUserSelector';
-import AdminDashboard from '@/components/AdminDashboard';
 import MaintenanceScreen from '@/components/MaintenanceScreen';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import PremiumRewardModal from '@/components/PremiumRewardModal';
@@ -62,7 +61,6 @@ export default function HomePage() {
   const [selectedVideo, setSelectedVideo] = useState<IVideo | null>(null);
   const [isUnlockModalOpen, setIsUnlockModalOpen] = useState(false);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
-  const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [maintenanceBypassed, setMaintenanceBypassed] = useState(false);
   const [mobileActiveTab, setMobileActiveTab] = useState<string>('home');
 
@@ -257,7 +255,6 @@ export default function HomePage() {
         telegramUser={telegramUser}
         userProfile={userProfile}
         onOpenUserModal={() => setIsUserModalOpen(true)}
-        onOpenAdmin={() => setIsAdminModalOpen(true)}
         onOpenPremium={() => setIsPremiumModalOpen(true)}
         isAdminLoggedIn={false}
         liveUsersCount={liveUsersCount}
@@ -267,7 +264,6 @@ export default function HomePage() {
       {settings.maintenanceMode && !maintenanceBypassed ? (
         <MaintenanceScreen
           appName={settings.appName}
-          onOpenAdmin={() => setIsAdminModalOpen(true)}
           onBypass={() => setMaintenanceBypassed(true)}
         />
       ) : (
@@ -536,14 +532,6 @@ export default function HomePage() {
         isOpen={isUserModalOpen}
         onClose={() => setIsUserModalOpen(false)}
         onTriggerPing={sendPing}
-      />
-
-      {/* Admin Dashboard & Management Portal */}
-      <AdminDashboard
-        isOpen={isAdminModalOpen}
-        onClose={() => setIsAdminModalOpen(false)}
-        onSettingsUpdated={(newSettings) => setSettings(newSettings)}
-        onVideosUpdated={loadMovies}
       />
 
       {/* Footer */}

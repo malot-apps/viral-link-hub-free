@@ -5,10 +5,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
  */
 export function isSupabaseConfigured(): boolean {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const pubKey =
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    '';
+  const pubKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '';
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
   return Boolean(
@@ -28,10 +25,7 @@ let adminClient: SupabaseClient | null = null;
  */
 export function getSupabaseClient(): SupabaseClient | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const pubKey =
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    '';
+  const pubKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '';
 
   if (!url || !pubKey || !url.startsWith('http')) {
     return null;
@@ -55,10 +49,7 @@ export function getSupabaseClient(): SupabaseClient | null {
 export function getSupabaseAdminClient(): SupabaseClient | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-  const pubKey =
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    '';
+  const pubKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '';
 
   const key = serviceKey || pubKey;
   if (!url || !key || !url.startsWith('http')) {
