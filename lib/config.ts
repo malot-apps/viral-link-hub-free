@@ -3,21 +3,34 @@ export type AppMode = 'production' | 'demo';
 /**
  * Application Configuration & Safety Gates
  *
- * Primary production architecture: Next.js + Supabase.
+ * Architecture: Next.js 15 + Supabase PostgreSQL + ENV-based Admin Auth.
  * - When APP_MODE=production:
  *   Supabase credentials & Admin credentials are required.
+ *   Production mode NEVER silently falls back to demo mode.
  * - When APP_MODE=demo:
- *   Demo data & simulated flows are provided with clear UI indicator.
+ *   Demo data & simulated flows are provided with clear UI indicators.
  */
 
 export const getAppMode = (): AppMode => {
-  if (process.env.APP_MODE === 'production' && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+  if (process.env.APP_MODE === 'production') {
     return 'production';
   }
-  if (process.env.APP_MODE === 'demo') return 'demo';
-  // Default to demo mode in preview/development when Supabase is not yet configured
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return 'demo';
-  return 'production';
+  if (process.env.APP_MODE === 'demo') {
+    return 'demo';
+  }
+  // Default based on presence of production Supabase credentials
+  const hasSupabaseUrl = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL?.trim());
+  const hasSupabaseKey = Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+  );
+
+  if (hasSupabaseUrl && hasSupabaseKey) {
+    return 'production';
+  }
+
+  return 'demo';
 };
 
 export const APP_MODE: AppMode = getAppMode();
@@ -31,18 +44,35 @@ export interface ProductionConfigValidation {
 }
 
 export function validateProductionConfig(): ProductionConfigValidation {
-  const requiredVars = [
-    'NEXT_PUBLIC_SUPABASE_URL',
-    'NEXT_PUBLIC_SUPABASE_ANON_KEY',
-    'ADMIN_USERNAME',
-    'ADMIN_PASSWORD',
-    'ADMIN_SESSION_SECRET',
-  ];
+  const missing: string[] = [];
 
-  const missing = requiredVars.filter((varName) => {
-    const val = process.env[varName];
-    return !val || val.trim().length === 0;
-  });
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()) {
+    missing.push('NEXT_PUBLIC_SUPABASE_URL');
+  }
+
+  const hasPublishable = Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim()
+  );
+  if (!hasPublishable && !process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) {
+    missing.push('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY');
+  }
+
+  if (!process.env.ADMIN_USERNAME?.trim()) {
+    missing.push('ADMIN_USERNAME');
+  }
+
+  if (!process.env.ADMIN_PASSWORD?.trim()) {
+    missing.push('ADMIN_PASSWORD');
+  }
+
+  const hasSessionSecret = Boolean(
+    process.env.ADMIN_SESSION_SECRET?.trim() ||
+    process.env.JWT_SECRET?.trim()
+  );
+  if (!hasSessionSecret) {
+    missing.push('ADMIN_SESSION_SECRET');
+  }
 
   return {
     valid: missing.length === 0,
@@ -57,8 +87,16 @@ export const config = {
   get supabaseUrl(): string {
     return process.env.NEXT_PUBLIC_SUPABASE_URL || '';
   },
+  get supabasePublishableKey(): string {
+    return (
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+      ''
+    );
+  },
+  // Alias for backward compatibility
   get supabaseAnonKey(): string {
-    return process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+    return this.supabasePublishableKey;
   },
   get supabaseServiceRoleKey(): string {
     return process.env.SUPABASE_SERVICE_ROLE_KEY || '';

@@ -1,5 +1,5 @@
 import { getSupabaseAdminClient, isSupabaseConfigured } from './supabase';
-import { isProduction, isDemo, config } from './config';
+import { isProduction, isDemo, config, validateProductionConfig } from './config';
 import { demoStore } from './demo-store';
 import {
   IVideo,
@@ -124,8 +124,12 @@ function getActiveClient() {
   if (client) return client;
 
   if (isProduction()) {
+    const validation = validateProductionConfig();
+    const missingVars = validation.missing.length > 0
+      ? validation.missing.join(', ')
+      : 'NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY / SUPABASE_SERVICE_ROLE_KEY';
     throw new Error(
-      '[Production Safety Gate] Supabase credentials (NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY) are required in production mode.'
+      `[Production Safety Gate] APP_MODE is set to 'production' but required configuration is missing or incomplete: ${missingVars}. Please configure these variables in your deployment environment.`
     );
   }
 

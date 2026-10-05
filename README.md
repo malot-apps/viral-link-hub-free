@@ -309,16 +309,16 @@ Configure these variables in your `.env.local` file or in your hosting provider'
 # =============================================================================
 # SUPABASE CONFIGURATION (PostgreSQL Database)
 # =============================================================================
-NEXT_PUBLIC_SUPABASE_URL=https://xyzcompany.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOi...
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOi...
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 
 # =============================================================================
-# ADMIN AUTHENTICATION
+# ADMIN AUTHENTICATION (ENV-based)
 # =============================================================================
 ADMIN_USERNAME=admin
-ADMIN_PASSWORD=YourStrongPassword2026!
-ADMIN_SESSION_SECRET=super_secret_session_encryption_key_change_in_production_2026
+ADMIN_PASSWORD=your_secure_admin_password
+ADMIN_SESSION_SECRET=your_random_32_character_session_secret
 
 # =============================================================================
 # APPLICATION MODE
@@ -456,7 +456,7 @@ cp .env.example .env.local
 
 For zero-config local testing, the application defaults to `APP_MODE=demo` if Supabase credentials are not set, allowing you to test all UI components and mock APIs immediately.
 
-To connect to your real database, provide your `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`.
+To connect to your real database, provide your `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`.
 
 ### 3. Start Development Server
 
@@ -481,7 +481,7 @@ node scripts/test-architecture.mjs
 ### Step 1: Deploy Database on Supabase (100% Free)
 1. Sign up at [supabase.com](https://supabase.com) and create a new project.
 2. In the **SQL Editor**, paste and execute `supabase-schema.sql`.
-3. Go to **Settings -> API** and copy your Project URL, anon key, and service_role key.
+3. Go to **Settings -> API** and copy your Project URL, publishable key, and service_role key.
 
 ### Step 2: Deploy to Vercel (100% Free)
 1. Push your repository to your GitHub account.
@@ -489,7 +489,7 @@ node scripts/test-architecture.mjs
 3. Import your GitHub repository.
 4. Under **Environment Variables**, add:
    - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
    - `SUPABASE_SERVICE_ROLE_KEY`
    - `ADMIN_USERNAME` (e.g. `admin`)
    - `ADMIN_PASSWORD` (strong password)
@@ -505,7 +505,7 @@ node scripts/test-architecture.mjs
 
 ### 1. "Application running in Demo Mode" indicator is shown
 - **Cause**: `NEXT_PUBLIC_SUPABASE_URL` is empty or `APP_MODE=demo`.
-- **Solution**: Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` in `.env.local` or your Vercel settings and set `APP_MODE=production`.
+- **Solution**: Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in `.env.local` or your Vercel settings and set `APP_MODE=production`.
 
 ### 2. Admin login fails with 401 Unauthorized
 - **Cause**: The entered password does not match `ADMIN_PASSWORD` in your environment variables.
@@ -524,7 +524,7 @@ node scripts/test-architecture.mjs
 Before launching to live traffic:
 
 - [ ] Executed `supabase-schema.sql` in the Supabase SQL editor.
-- [ ] Added `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` to Vercel.
+- [ ] Added `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` to Vercel.
 - [ ] Changed `ADMIN_USERNAME` and `ADMIN_PASSWORD` from default values.
 - [ ] Generated a unique `ADMIN_SESSION_SECRET`.
 - [ ] Set `APP_MODE=production`.
@@ -573,12 +573,12 @@ curl -X POST https://your-domain.vercel.app/api/v1/admin/videos \
    - প্রোজেক্ট ড্যাশবোর্ডের বাম পাশের **SQL Editor**-এ যান।
    - এই রিপোজিটরির `supabase-schema.sql` ফাইলের পুরো কোড কপি করে পেস্ট করুন এবং **Run** বাটনে চাপ দিন।
    - সব টেবিল, ইনডেক্স এবং সিকিউরিটি পলিসি সাথে সাথে তৈরি হয়ে যাবে।
-   - **Project Settings -> API** থেকে **Project URL**, **anon key**, এবং **service_role key** কপি করে রাখুন।
+   - **Project Settings -> API** থেকে **Project URL**, **publishable key**, এবং **service_role key** কপি করে রাখুন।
 3. **Vercel-এ ডিপ্লয় করুন**:
    - [vercel.com](https://vercel.com)-এ গিয়ে **Add New Project** দিন এবং আপনার GitHub রিপোজিটরি সিলেক্ট করুন।
    - **Environment Variables** সেকশনে নিচের ভ্যারিয়েবলগুলো যোগ করুন:
      - `NEXT_PUBLIC_SUPABASE_URL` = (আপনার Supabase URL)
-     - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = (আপনার anon key)
+     - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` = (আপনার publishable key)
      - `SUPABASE_SERVICE_ROLE_KEY` = (আপনার service_role key)
      - `ADMIN_USERNAME` = `admin`
      - `ADMIN_PASSWORD` = (আপনার নিজের গোপন পাসওয়ার্ড)

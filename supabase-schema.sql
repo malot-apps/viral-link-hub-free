@@ -1,7 +1,15 @@
--- VIRAL LINK HUB — Supabase PostgreSQL Schema
--- Authoritative database migration for malot-apps/viral-link-hub-free
+-- ============================================================================
+-- VIRAL LINK HUB — Authoritative Supabase PostgreSQL Schema
+-- Next.js 15 + Supabase PostgreSQL + ENV-based Admin Auth
+-- Repository: https://github.com/malot-apps/viral-link-hub-free
+-- ============================================================================
 
+-- Enable required extensions
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- ============================================================================
 -- 1. VIDEOS TABLE
+-- ============================================================================
 CREATE TABLE IF NOT EXISTS videos (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
@@ -22,12 +30,13 @@ CREATE TABLE IF NOT EXISTS videos (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Index for searching and filtering videos
 CREATE INDEX IF NOT EXISTS idx_videos_category ON videos(category);
 CREATE INDEX IF NOT EXISTS idx_videos_is_featured ON videos(is_featured);
 CREATE INDEX IF NOT EXISTS idx_videos_created_at ON videos(created_at DESC);
 
--- 2. SETTINGS TABLE (Single row configuration)
+-- ============================================================================
+-- 2. SETTINGS TABLE (Singleton Configuration Row: id = 1)
+-- ============================================================================
 CREATE TABLE IF NOT EXISTS settings (
   id INTEGER PRIMARY KEY DEFAULT 1,
   app_name TEXT DEFAULT 'VIRAL LINK HUB',
@@ -40,7 +49,7 @@ CREATE TABLE IF NOT EXISTS settings (
   telegram_channel_url TEXT DEFAULT 'https://t.me/virallinkhub_official',
   force_join_channel BOOLEAN DEFAULT false,
   
-  -- Growth & Premium Reward
+  -- Growth & Premium Reward Configuration
   premium_reward_enabled BOOLEAN DEFAULT true,
   premium_required_ads INTEGER DEFAULT 3,
   premium_required_referrals INTEGER DEFAULT 3,
@@ -57,82 +66,14 @@ CREATE TABLE IF NOT EXISTS settings (
   CONSTRAINT single_settings_row CHECK (id = 1)
 );
 
--- Seed default settings row if empty
+-- Seed default settings row if not present
 INSERT INTO settings (id, app_name)
 VALUES (1, 'VIRAL LINK HUB')
 ON CONFLICT (id) DO NOTHING;
 
--- 3. ADMINS TABLE
-CREATE TABLE IF NOT EXISTS admins (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  username TEXT UNIQUE NOT NULL,
-  password_hash TEXT NOT NULL,
-  role TEXT DEFAULT 'admin',
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 4. ANALYTICS EVENTS TABLE
-CREATE TABLE IF NOT EXISTS analytics_events (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  event TEXT NOT NULL,
-  user_id TEXT NOT NULL,
-  content_id TEXT,
-  referral_code TEXT,
-  campaign TEXT,
-  source TEXT,
-  placement TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  metadata JSONB DEFAULT '{}'::jsonb
-);
-
-CREATE INDEX IF NOT EXISTS idx_analytics_event ON analytics_events(event);
-CREATE INDEX IF NOT EXISTS idx_analytics_user ON analytics_events(user_id);
-CREATE INDEX IF NOT EXISTS idx_analytics_created ON analytics_events(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_analytics_placement ON analytics_events(placement);
-
--- 5. REFERRALS TABLE
-CREATE TABLE IF NOT EXISTS referrals (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  referrer_id TEXT NOT NULL,
-  referred_user_id TEXT NOT NULL,
-  referral_code TEXT NOT NULL,
-  status TEXT DEFAULT 'pending', -- 'pending' | 'qualified'
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  qualified_at TIMESTAMPTZ,
-  CONSTRAINT unique_referred_user UNIQUE (referred_user_id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_referrals_referrer ON referrals(referrer_id);
-CREATE INDEX IF NOT EXISTS idx_referrals_status ON referrals(status);
-
--- 6. PREMIUM REWARDS TABLE
-CREATE TABLE IF NOT EXISTS premium_rewards (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id TEXT NOT NULL,
-  duration_hours INTEGER DEFAULT 24,
-  claimed_at TIMESTAMPTZ DEFAULT NOW(),
-  expires_at TIMESTAMPTZ NOT NULL,
-  status TEXT DEFAULT 'active' -- 'active' | 'expired'
-);
-
-CREATE INDEX IF NOT EXISTS idx_premium_user ON premium_rewards(user_id);
-CREATE INDEX IF NOT EXISTS idx_premium_expires ON premium_rewards(expires_at DESC);
-
--- 7. AUDIT LOGS TABLE
-CREATE TABLE IF NOT EXISTS audit_logs (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  admin TEXT NOT NULL,
-  action TEXT NOT NULL,
-  target TEXT,
-  metadata JSONB DEFAULT '{}'::jsonb,
-  ip TEXT,
-  user_agent TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at DESC);
-
--- 8. USERS (TELEGRAM PROFILES & REWARD TRACKING)
+-- ============================================================================
+-- 3. USERS TABLE (Telegram Profiles & Viral Reward Tracking)
+-- ============================================================================
 CREATE TABLE IF NOT EXISTS users (
   telegram_user_id TEXT PRIMARY KEY,
   username TEXT,
@@ -149,7 +90,78 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE INDEX IF NOT EXISTS idx_users_referral_code ON users(referral_code);
 
--- 9. SEED STARTER VIDEOS (Optional initial catalog)
+-- ============================================================================
+-- 4. REFERRALS TABLE (Viral Attribution & Qualification)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS referrals (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  referrer_id TEXT NOT NULL,
+  referred_user_id TEXT NOT NULL,
+  referral_code TEXT NOT NULL,
+  status TEXT DEFAULT 'pending', -- 'pending' | 'qualified'
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  qualified_at TIMESTAMPTZ,
+  CONSTRAINT unique_referred_user UNIQUE (referred_user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_referrals_referrer ON referrals(referrer_id);
+CREATE INDEX IF NOT EXISTS idx_referrals_status ON referrals(status);
+
+-- ============================================================================
+-- 5. ANALYTICS EVENTS TABLE (High-Throughput Telemetry Stream)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS analytics_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  content_id TEXT,
+  placement TEXT,
+  campaign TEXT,
+  source TEXT,
+  referral_code TEXT,
+  metadata JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_analytics_event ON analytics_events(event);
+CREATE INDEX IF NOT EXISTS idx_analytics_user ON analytics_events(user_id);
+CREATE INDEX IF NOT EXISTS idx_analytics_created ON analytics_events(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_analytics_placement ON analytics_events(placement);
+
+-- ============================================================================
+-- 6. PREMIUM REWARDS TABLE (24-Hour VIP Passes)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS premium_rewards (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL,
+  duration_hours INTEGER DEFAULT 24,
+  claimed_at TIMESTAMPTZ DEFAULT NOW(),
+  expires_at TIMESTAMPTZ NOT NULL,
+  status TEXT DEFAULT 'active' -- 'active' | 'expired'
+);
+
+CREATE INDEX IF NOT EXISTS idx_premium_user ON premium_rewards(user_id);
+CREATE INDEX IF NOT EXISTS idx_premium_expires ON premium_rewards(expires_at DESC);
+
+-- ============================================================================
+-- 7. AUDIT LOGS TABLE (Tamper-Evident Admin Action Trail)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  admin TEXT NOT NULL,
+  action TEXT NOT NULL,
+  target TEXT,
+  metadata JSONB DEFAULT '{}'::jsonb,
+  ip TEXT,
+  user_agent TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at DESC);
+
+-- ============================================================================
+-- 8. INITIAL STARTER SEED MOVIES (Populated only if table is empty)
+-- ============================================================================
 INSERT INTO videos (title, description, poster_url, banner_url, category, stream_url, target_link, direct_ad_link, required_ads_count, quality, file_size, tags, views_count, is_featured)
 SELECT 
   'Neon Protocol: Cyber Shadow',
@@ -190,8 +202,8 @@ INSERT INTO videos (title, description, poster_url, banner_url, category, stream
 SELECT 
   'Celestial Blade: Sovereign Chronicle',
   'In ancient celestial realms, legendary blade masters fight to preserve cosmic balance against shadow dragons.',
-  '/images/movie_anime_blade.jpg',
-  '/images/movie_anime_blade.jpg',
+  '/images/movie_anime_fantasy.jpg',
+  '/images/movie_anime_fantasy.jpg',
   'Anime',
   'https://fastcdn.stream/v/demo-celestial-blade',
   'https://fastcdn.stream/v/demo-celestial-blade',
@@ -204,41 +216,65 @@ SELECT
   true
 WHERE NOT EXISTS (SELECT 1 FROM videos WHERE title = 'Celestial Blade: Sovereign Chronicle');
 
--- 10. ROW LEVEL SECURITY (RLS) POLICIES
+-- ============================================================================
+-- 9. ROW LEVEL SECURITY (RLS) POLICIES
+-- ============================================================================
+-- Enable RLS on all 7 tables
 ALTER TABLE videos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE analytics_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE referrals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE analytics_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE premium_rewards ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 
--- Drop existing policies if rerun
+-- Drop prior policies to ensure clean idempotency
 DROP POLICY IF EXISTS "Public Read Videos" ON videos;
 DROP POLICY IF EXISTS "Public Read Settings" ON settings;
 DROP POLICY IF EXISTS "Public Read Users" ON users;
 DROP POLICY IF EXISTS "Public Insert Analytics" ON analytics_events;
 DROP POLICY IF EXISTS "Service Role Full Videos" ON videos;
 DROP POLICY IF EXISTS "Service Role Full Settings" ON settings;
-DROP POLICY IF EXISTS "Service Role Full Analytics" ON analytics_events;
+DROP POLICY IF EXISTS "Service Role Full Users" ON users;
 DROP POLICY IF EXISTS "Service Role Full Referrals" ON referrals;
+DROP POLICY IF EXISTS "Service Role Full Analytics" ON analytics_events;
 DROP POLICY IF EXISTS "Service Role Full Rewards" ON premium_rewards;
 DROP POLICY IF EXISTS "Service Role Full Audit" ON audit_logs;
-DROP POLICY IF EXISTS "Service Role Full Users" ON users;
 
--- Public Read for Catalog & Configuration
-CREATE POLICY "Public Read Videos" ON videos FOR SELECT USING (true);
-CREATE POLICY "Public Read Settings" ON settings FOR SELECT USING (true);
-CREATE POLICY "Public Read Users" ON users FOR SELECT USING (true);
+-- PUBLIC POLICIES (Anonymous / Visitor access)
+-- Public users may ONLY read data that the public app actually needs:
+CREATE POLICY "Public Read Videos" ON videos
+  FOR SELECT USING (true);
 
--- Public Insert for Analytics Event Stream
-CREATE POLICY "Public Insert Analytics" ON analytics_events FOR INSERT WITH CHECK (true);
+CREATE POLICY "Public Read Settings" ON settings
+  FOR SELECT USING (true);
 
--- Service Role Full Permissions for Next.js Server & Admin APIs
-CREATE POLICY "Service Role Full Videos" ON videos FOR ALL USING (auth.role() = 'service_role' OR current_user = 'postgres');
-CREATE POLICY "Service Role Full Settings" ON settings FOR ALL USING (auth.role() = 'service_role' OR current_user = 'postgres');
-CREATE POLICY "Service Role Full Analytics" ON analytics_events FOR ALL USING (auth.role() = 'service_role' OR current_user = 'postgres');
-CREATE POLICY "Service Role Full Referrals" ON referrals FOR ALL USING (auth.role() = 'service_role' OR current_user = 'postgres');
-CREATE POLICY "Service Role Full Rewards" ON premium_rewards FOR ALL USING (auth.role() = 'service_role' OR current_user = 'postgres');
-CREATE POLICY "Service Role Full Audit" ON audit_logs FOR ALL USING (auth.role() = 'service_role' OR current_user = 'postgres');
-CREATE POLICY "Service Role Full Users" ON users FOR ALL USING (auth.role() = 'service_role' OR current_user = 'postgres');
+CREATE POLICY "Public Read Users" ON users
+  FOR SELECT USING (true);
+
+-- Public users may insert client analytics telemetry events
+CREATE POLICY "Public Insert Analytics" ON analytics_events
+  FOR INSERT WITH CHECK (true);
+
+-- PRIVILEGED POLICIES (Server-side / Service Role access)
+-- All privileged writes/updates/deletes happen strictly server-side via service_role:
+CREATE POLICY "Service Role Full Videos" ON videos
+  FOR ALL USING (auth.role() = 'service_role' OR current_user = 'postgres');
+
+CREATE POLICY "Service Role Full Settings" ON settings
+  FOR ALL USING (auth.role() = 'service_role' OR current_user = 'postgres');
+
+CREATE POLICY "Service Role Full Users" ON users
+  FOR ALL USING (auth.role() = 'service_role' OR current_user = 'postgres');
+
+CREATE POLICY "Service Role Full Referrals" ON referrals
+  FOR ALL USING (auth.role() = 'service_role' OR current_user = 'postgres');
+
+CREATE POLICY "Service Role Full Analytics" ON analytics_events
+  FOR ALL USING (auth.role() = 'service_role' OR current_user = 'postgres');
+
+CREATE POLICY "Service Role Full Rewards" ON premium_rewards
+  FOR ALL USING (auth.role() = 'service_role' OR current_user = 'postgres');
+
+CREATE POLICY "Service Role Full Audit" ON audit_logs
+  FOR ALL USING (auth.role() = 'service_role' OR current_user = 'postgres');

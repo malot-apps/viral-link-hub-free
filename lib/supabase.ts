@@ -1,13 +1,20 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
+/**
+ * Returns true if Supabase is configured with URL and at least one key
+ */
 export function isSupabaseConfigured(): boolean {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+  const pubKey =
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    '';
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
   return Boolean(
     url &&
     url.startsWith('http') &&
-    (anonKey || serviceKey)
+    (pubKey || serviceKey)
   );
 }
 
@@ -15,14 +22,23 @@ let browserClient: SupabaseClient | null = null;
 let adminClient: SupabaseClient | null = null;
 
 /**
- * Returns a Supabase client for client-side or anon operations
+ * Returns a Supabase client for client-side / browser operations.
+ * CRITICAL SECURITY: ONLY uses public publishable key.
+ * NEVER exposes SUPABASE_SERVICE_ROLE_KEY to client components.
  */
 export function getSupabaseClient(): SupabaseClient | null {
-  if (!isSupabaseConfigured()) return null;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  const pubKey =
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    '';
+
+  if (!url || !pubKey || !url.startsWith('http')) {
+    return null;
+  }
+
   if (!browserClient) {
-    browserClient = createClient(url, key, {
+    browserClient = createClient(url, pubKey, {
       auth: {
         persistSession: false,
       },
@@ -32,13 +48,23 @@ export function getSupabaseClient(): SupabaseClient | null {
 }
 
 /**
- * Returns a privileged Supabase client for server-side / admin API route operations
- * Uses SUPABASE_SERVICE_ROLE_KEY if provided, falling back to anon key
+ * Returns a privileged Supabase client for server-side / admin API route operations.
+ * This function is ONLY called in server-side route handlers / Node runtime.
+ * Uses SUPABASE_SERVICE_ROLE_KEY if provided, falling back to publishable key.
  */
 export function getSupabaseAdminClient(): SupabaseClient | null {
-  if (!isSupabaseConfigured()) return null;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  const pubKey =
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    '';
+
+  const key = serviceKey || pubKey;
+  if (!url || !key || !url.startsWith('http')) {
+    return null;
+  }
+
   if (!adminClient) {
     adminClient = createClient(url, key, {
       auth: {
