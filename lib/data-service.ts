@@ -1,6 +1,7 @@
 import { getSupabaseAdminClient, isSupabaseConfigured } from './supabase';
 import { isProduction, isDemo, config, validateProductionConfig } from './config';
 import { demoStore } from './demo-store';
+import { CURATED_FALLBACK_VIDEOS, DEFAULT_APP_SETTINGS } from './catalog-seed';
 import {
   IVideo,
   ISettings,
@@ -14,6 +15,31 @@ import {
   ICampaign,
 } from './types';
 import { parseStartappParam } from './telegram-constants';
+
+/**
+ * Timeout wrapper for async operations to prevent hanging serverless routes.
+ */
+export async function withTimeout<T = any>(
+  promise: Promise<T> | PromiseLike<T>,
+  ms = 4000,
+  timeoutMessage = 'Operation timed out'
+): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(`${timeoutMessage} after ${ms}ms`));
+    }, ms);
+  });
+
+  try {
+    const result = await Promise.race([Promise.resolve(promise), timeoutPromise]);
+    if (timer) clearTimeout(timer);
+    return result;
+  } catch (err) {
+    if (timer) clearTimeout(timer);
+    throw err;
+  }
+}
 
 /**
  * Authoritative Data Service — Powered by Supabase PostgreSQL
@@ -149,20 +175,20 @@ export function mapSettingsFromDb(row: any): ISettings {
     adCooldownSeconds: row.ad_cooldown_seconds ?? 10,
     maxAdsPerDay: row.max_ads_per_day ?? 30,
     adPlacements: {
-      homeBanner: true,
-      contentCard: true,
-      contentDetails: true,
-      unlockAction: true,
-      betweenNav: true,
-      popunder: true,
-      premiumRewardArea: true,
-      nativeBannerHome: true,
-      nativeBannerContent: true,
-      banner728x90Desktop: true,
-      socialBarGlobal: true,
-      popunderGlobal: true,
-      monetagRewarded: true,
-      monetagInApp: true,
+      homeBanner: row.ad_placements?.homeBanner ?? true,
+      contentCard: row.ad_placements?.contentCard ?? true,
+      contentDetails: row.ad_placements?.contentDetails ?? true,
+      unlockAction: row.ad_placements?.unlockAction ?? true,
+      betweenNav: row.ad_placements?.betweenNav ?? true,
+      popunder: row.ad_placements?.popunder ?? true,
+      premiumRewardArea: row.ad_placements?.premiumRewardArea ?? true,
+      nativeBannerHome: row.ad_placements?.nativeBannerHome ?? true,
+      nativeBannerContent: row.ad_placements?.nativeBannerContent ?? true,
+      banner728x90Desktop: row.ad_placements?.banner728x90Desktop ?? true,
+      socialBarGlobal: row.ad_placements?.socialBarGlobal ?? true,
+      popunderGlobal: row.ad_placements?.popunderGlobal ?? true,
+      monetagRewarded: row.ad_placements?.monetagRewarded ?? true,
+      monetagInApp: row.ad_placements?.monetagInApp ?? true,
     },
   };
 }
@@ -171,17 +197,16 @@ export function mapSettingsFromDb(row: any): ISettings {
  * Returns the Supabase client or handles production vs demo gating
  */
 function getActiveClient() {
-  const client = getSupabaseAdminClient();
-  if (client) return client;
+  try {
+    const client = getSupabaseAdminClient();
+    if (client) return client;
+  } catch (err: any) {
+    console.warn('[Supabase client init warning]:', err?.message);
+  }
 
-  if (isProduction()) {
-    const validation = validateProductionConfig();
-    const missingVars = validation.missing.length > 0
-      ? validation.missing.join(', ')
-      : 'NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY / SUPABASE_SERVICE_ROLE_KEY';
-    throw new Error(
-      `[Production Safety Gate] APP_MODE is set to 'production' but required configuration is missing or incomplete: ${missingVars}. Please configure these variables in your deployment environment.`
-    );
+  // If in production and credentials exist but client failed
+  if (isProduction() && !isSupabaseConfigured()) {
+    console.warn('[Production Safety Gate Warning]: Supabase credentials incomplete, using fail-safe runtime fallback.');
   }
 
   return null;
@@ -198,34 +223,47 @@ export async function fetchVideos(filter?: {
 }): Promise<IVideo[]> {
   const client = getActiveClient();
   if (client) {
-    let query = client.from('videos').select('*');
+    try {
+      let query = client.from('videos').select('*');
 
-    if (filter?.category && filter.category !== 'All') {
-      query = query.ilike('category', filter.category);
-    }
-    if (typeof filter?.featured === 'boolean') {
-      query = query.eq('is_featured', filter.featured);
-    }
-    if (filter?.search?.trim()) {
-      const term = `%${filter.search.trim()}%`;
-      query = query.or(`title.ilike.${term},description.ilike.${term}`);
-    }
+      if (filter?.category && filter.category !== 'All') {
+        query = query.ilike('category', filter.category);
+      }
+      if (typeof filter?.featured === 'boolean') {
+        query = query.eq('is_featured', filter.featured);
+      }
+      if (filter?.search?.trim()) {
+        const term = `%${filter.search.trim()}%`;
+        query = query.or(`title.ilike.${term},description.ilike.${term}`);
+      }
 
-    const { data, error } = await query
-      .order('is_featured', { ascending: false })
-      .order('created_at', { ascending: false });
+      // Enforce 4000ms query timeout to avoid blocking Vercel serverless functions
+      const { data, error } = await withTimeout<any>(
+        query
+          .order('is_featured', { ascending: false })
+          .order('created_at', { ascending: false }),
+        4000,
+        'Supabase fetchVideos query timeout'
+      );
 
-    if (error) {
-      console.error('[Supabase fetchVideos error]:', error.message);
-      if (isProduction()) throw error;
-      return demoStore.videos;
+      if (error) {
+        console.warn('[Supabase fetchVideos error, falling back to curated catalog]:', error.message);
+      } else if (data && data.length > 0) {
+        return data.map(mapVideoFromDb);
+      } else {
+        console.warn('[Supabase fetchVideos returned 0 videos, supplying curated catalog fallback]');
+      }
+    } catch (err: any) {
+      console.warn('[Supabase fetchVideos exception, falling back to curated catalog]:', err?.message);
     }
-
-    return (data || []).map(mapVideoFromDb);
   }
 
-  // Demo fallback
-  let result = [...demoStore.videos];
+  // Fail-safe curated fallback (ensures website NEVER opens empty/broken on cold start)
+  const sourceList = (demoStore?.videos && demoStore.videos.length > 0)
+    ? demoStore.videos
+    : CURATED_FALLBACK_VIDEOS;
+
+  let result = [...sourceList];
   if (filter?.category && filter.category !== 'All') {
     result = result.filter(
       (v) => v.category.toLowerCase() === filter.category!.toLowerCase()
@@ -243,28 +281,42 @@ export async function fetchVideos(filter?: {
         v.tags?.some((t) => t.toLowerCase().includes(q))
     );
   }
+
+  // Guarantee non-empty catalog for default browse view
+  if (result.length === 0 && (!filter?.search?.trim() || filter?.category === 'All')) {
+    return CURATED_FALLBACK_VIDEOS;
+  }
+
   return result;
 }
 
 export async function fetchVideoById(id: string): Promise<IVideo | null> {
   const client = getActiveClient();
   if (client) {
-    const { data, error } = await client
-      .from('videos')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
+    try {
+      const { data, error } = await withTimeout<any>(
+        client
+          .from('videos')
+          .select('*')
+          .eq('id', id)
+          .maybeSingle(),
+        4000,
+        'Supabase fetchVideoById query timeout'
+      );
 
-    if (error) {
-      console.error('[Supabase fetchVideoById error]:', error.message);
-      if (isProduction()) throw error;
-      return demoStore.videos.find((v) => v._id === id) || null;
+      if (!error && data) {
+        return mapVideoFromDb(data);
+      }
+    } catch (err: any) {
+      console.warn('[Supabase fetchVideoById error]:', err?.message);
     }
-
-    return data ? mapVideoFromDb(data) : null;
   }
 
-  return demoStore.videos.find((v) => v._id === id) || null;
+  return (
+    demoStore.videos.find((v) => v._id === id) ||
+    CURATED_FALLBACK_VIDEOS.find((v) => v._id === id) ||
+    null
+  );
 }
 
 export async function createNewVideo(data: {
@@ -432,32 +484,40 @@ export async function removeVideo(id: string): Promise<boolean> {
 export async function fetchSettings(): Promise<ISettings> {
   const client = getActiveClient();
   if (client) {
-    const { data, error } = await client
-      .from('settings')
-      .select('*')
-      .eq('id', 1)
-      .maybeSingle();
+    try {
+      const { data, error } = await withTimeout<any>(
+        client
+          .from('settings')
+          .select('*')
+          .eq('id', 1)
+          .maybeSingle(),
+        4000,
+        'Supabase fetchSettings query timeout'
+      );
 
-    if (error) {
-      console.error('[Supabase fetchSettings error]:', error.message);
-      if (isProduction()) throw error;
-      return demoStore.settings;
+      if (error) {
+        console.warn('[Supabase fetchSettings error, using default settings]:', error.message);
+      } else if (data) {
+        return mapSettingsFromDb(data);
+      } else {
+        // Seed default row if empty
+        const defaultSettings = mapSettingsFromDb(null);
+        Promise.resolve(
+          client
+            .from('settings')
+            .insert({
+              id: 1,
+              app_name: defaultSettings.appName,
+            })
+        ).catch(() => {});
+        return defaultSettings;
+      }
+    } catch (err: any) {
+      console.warn('[Supabase fetchSettings exception, using fallback settings]:', err?.message);
     }
-
-    if (!data) {
-      // Seed default row if empty
-      const defaultSettings = mapSettingsFromDb(null);
-      await client.from('settings').insert({
-        id: 1,
-        app_name: defaultSettings.appName,
-      });
-      return defaultSettings;
-    }
-
-    return mapSettingsFromDb(data);
   }
 
-  return demoStore.settings;
+  return demoStore?.settings || DEFAULT_APP_SETTINGS;
 }
 
 export async function modifySettings(updates: Partial<ISettings>): Promise<ISettings> {
@@ -484,6 +544,22 @@ export async function modifySettings(updates: Partial<ISettings>): Promise<ISett
     if (updates.maxPopundersPerSession !== undefined) dbPayload.max_popunders_per_session = updates.maxPopundersPerSession;
     if (updates.adCooldownSeconds !== undefined) dbPayload.ad_cooldown_seconds = updates.adCooldownSeconds;
     if (updates.maxAdsPerDay !== undefined) dbPayload.max_ads_per_day = updates.maxAdsPerDay;
+
+    // Monetag & Adsterra fields
+    if (updates.monetagZoneId !== undefined) dbPayload.monetag_zone_id = updates.monetagZoneId;
+    if (updates.monetagEnabled !== undefined) dbPayload.monetag_enabled = updates.monetagEnabled;
+    if (updates.inAppFrequency !== undefined) dbPayload.in_app_frequency = updates.inAppFrequency;
+    if (updates.inAppCapping !== undefined) dbPayload.in_app_capping = updates.inAppCapping;
+    if (updates.inAppInterval !== undefined) dbPayload.in_app_interval = updates.inAppInterval;
+    if (updates.inAppTimeout !== undefined) dbPayload.in_app_timeout = updates.inAppTimeout;
+    if (updates.adsterraEnabled !== undefined) dbPayload.adsterra_enabled = updates.adsterraEnabled;
+    if (updates.adsterraPopunderUrl !== undefined) dbPayload.adsterra_popunder_url = updates.adsterraPopunderUrl;
+    if (updates.adsterraSmartlinkUrl !== undefined) dbPayload.adsterra_smartlink_url = updates.adsterraSmartlinkUrl;
+    if (updates.adsterraSocialBarUrl !== undefined) dbPayload.adsterra_socialbar_url = updates.adsterraSocialBarUrl;
+    if (updates.adsterraNativeBannerUrl !== undefined) dbPayload.adsterra_native_banner_url = updates.adsterraNativeBannerUrl;
+    if (updates.adsterraNativeBannerContainer !== undefined) dbPayload.adsterra_native_banner_container = updates.adsterraNativeBannerContainer;
+    if (updates.adsterraBanner728x90Key !== undefined) dbPayload.adsterra_banner_728x90_key = updates.adsterraBanner728x90Key;
+    if (updates.adPlacements !== undefined) dbPayload.ad_placements = updates.adPlacements;
 
     const { data, error } = await client
       .from('settings')

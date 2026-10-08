@@ -33,7 +33,7 @@ export const ADSTERRA_CONFIG = {
   NATIVE_BANNER_URL: 'https://cheflobesofficer.com/5f7e7c20bab3c9a4fa6f40424b458934/invoke.js',
   NATIVE_BANNER_CONTAINER_ID: 'container-5f7e7c20bab3c9a4fa6f40424b458934',
   BANNER_728X90_KEY: 'd2a5e27ec28fef3e096f82c41992173b',
-  BANNER_728X90_INVOKE_URL: '//www.highperformanceformat.com/d2a5e27ec28fef3e096f82c41992173b/invoke.js',
+  BANNER_728X90_INVOKE_URL: 'https://cheflobesofficer.com/d2a5e27ec28fef3e096f82c41992173b/invoke.js',
 } as const;
 
 export const AD_PLACEMENTS = {

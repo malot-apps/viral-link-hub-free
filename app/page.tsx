@@ -17,6 +17,7 @@ import AdsterraNativeBanner from '@/components/ads/AdsterraNativeBanner';
 import AdsterraBanner728x90 from '@/components/ads/AdsterraBanner728x90';
 import { isTelegramWebApp } from '@/lib/ad-manager';
 import { IVideo, ISettings, ITelegramUser, IUserProfile } from '@/lib/types';
+import { CURATED_FALLBACK_VIDEOS, DEFAULT_APP_SETTINGS } from '@/lib/catalog-seed';
 import { Search, Cloud, Send, Sparkles, Share2, ExternalLink } from 'lucide-react';
 
 declare global {
@@ -35,19 +36,52 @@ declare global {
   }
 }
 
-export default function HomePage() {
-  // Application Settings
-  const [settings, setSettings] = useState<ISettings>({
-    appName: 'VIRAL LINK HUB',
-    maintenanceMode: false,
-    globalAdLink: 'https://monetag.com/direct?zone=98765&ref=virallinkhub',
-    defaultAdsRequired: 2,
-    announcementBannerText: '🔥 High-Speed Terabox Links active! Complete sponsor task to unlock.',
-    telegramChannelUrl: 'https://t.me/virallinkhub',
-  });
+/**
+ * Resilient fetcher with timeout and exponential backoff retry.
+ * Prevents initial load failures caused by serverless/Supabase cold starts.
+ */
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit = {},
+  maxRetries = 2,
+  baseDelay = 600
+): Promise<any> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
 
-  // Movie Catalog
-  const [movies, setMovies] = useState<IVideo[]>([]);
+    try {
+      const res = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) {
+          return json;
+        }
+      }
+    } catch (err: any) {
+      clearTimeout(timer);
+      console.warn(`[Network Retry] ${url} attempt ${attempt + 1}/${maxRetries + 1} failed:`, err?.message);
+    }
+
+    if (attempt < maxRetries) {
+      await new Promise((r) => setTimeout(r, baseDelay * (attempt + 1)));
+    }
+  }
+  return null;
+}
+
+export default function HomePage() {
+  // Application Settings (Seeded with production defaults so first render never breaks)
+  const [settings, setSettings] = useState<ISettings>(DEFAULT_APP_SETTINGS);
+
+  // Movie Catalog (Pre-seeded with instant curated catalog so site is never blank on cold start)
+  const [movies, setMovies] = useState<IVideo[]>(CURATED_FALLBACK_VIDEOS);
+  const [isCatalogLoading, setIsCatalogLoading] = useState<boolean>(false);
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -95,29 +129,30 @@ export default function HomePage() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Fetch App Configuration
+  // Fetch App Configuration with automatic retry & fallback
   const loadConfig = useCallback(async () => {
     try {
-      const res = await fetch('/api/v1/app-config');
-      const data = await res.json();
-      if (data.success && data.data) {
+      const data = await fetchWithRetry('/api/v1/app-config', {}, 2, 600);
+      if (data?.success && data?.data) {
         setSettings(data.data);
       }
     } catch {
-      // non-fatal
+      // Retains DEFAULT_APP_SETTINGS gracefully
     }
   }, []);
 
-  // Fetch Movies
+  // Fetch Movies with automatic retry & fail-safe fallback
   const loadMovies = useCallback(async () => {
+    setIsCatalogLoading(true);
     try {
-      const res = await fetch('/api/v1/movies');
-      const data = await res.json();
-      if (data.success && data.data) {
+      const data = await fetchWithRetry('/api/v1/movies', {}, 2, 600);
+      if (data?.success && Array.isArray(data.data) && data.data.length > 0) {
         setMovies(data.data);
       }
     } catch {
-      // non-fatal
+      // Retains pre-seeded CURATED_FALLBACK_VIDEOS gracefully
+    } finally {
+      setIsCatalogLoading(false);
     }
   }, []);
 
@@ -180,16 +215,21 @@ export default function HomePage() {
     }
   }, [telegramUser]);
 
+  // Initial catalog & app configuration load (runs once on mount)
   useEffect(() => {
     loadConfig();
     loadMovies();
+  }, [loadConfig, loadMovies]);
+
+  // Telegram session sync & heartbeat ping loop
+  useEffect(() => {
     sendPing();
     syncUser();
 
     // Ping every 30 seconds to maintain 5-minute sliding session window
     const pingInterval = setInterval(sendPing, 30000);
     return () => clearInterval(pingInterval);
-  }, [loadConfig, loadMovies, sendPing, syncUser]);
+  }, [sendPing, syncUser]);
 
   // Featured video for Hero section
   const featuredVideo = useMemo(() => {

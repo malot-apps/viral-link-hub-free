@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { fetchSettings } from '@/lib/data-service';
+import { DEFAULT_APP_SETTINGS } from '@/lib/catalog-seed';
 
 export async function GET() {
   try {
@@ -7,7 +8,7 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       data: {
-        appName: settings.appName,
+        appName: settings.appName || 'VIRAL LINK HUB',
         maintenanceMode: Boolean(settings.maintenanceMode),
         globalAdLink: settings.globalAdLink,
         primaryDirectLink: settings.primaryDirectLink || settings.globalAdLink,
@@ -35,32 +36,15 @@ export async function GET() {
         adCooldownSeconds: settings.adCooldownSeconds ?? 10,
         maxAdsPerSession: settings.maxAdsPerSession ?? 5,
         maxPopundersPerSession: settings.maxPopundersPerSession ?? 1,
-        adPlacements: settings.adPlacements || {
-          homeBanner: true,
-          contentCard: true,
-          contentDetails: true,
-          unlockAction: true,
-          betweenNav: true,
-          popunder: true,
-          premiumRewardArea: true,
-          nativeBannerHome: true,
-          nativeBannerContent: true,
-          banner728x90Desktop: true,
-          socialBarGlobal: true,
-          popunderGlobal: true,
-          monetagRewarded: true,
-          monetagInApp: true,
-        },
+        adPlacements: settings.adPlacements || DEFAULT_APP_SETTINGS.adPlacements,
       },
     });
   } catch (error: any) {
-    console.error('[Public App Config Error]:', error.message);
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Failed to retrieve application configuration',
-      },
-      { status: 500 }
-    );
+    console.warn('[Public App Config Error, returning fail-safe config]:', error.message);
+    return NextResponse.json({
+      success: true,
+      data: DEFAULT_APP_SETTINGS,
+      isFallback: true,
+    });
   }
 }

@@ -12,7 +12,22 @@ interface HeroFeaturedProps {
 }
 
 export default function HeroFeatured({ video, onOpenUnlockModal, onOpenShare }: HeroFeaturedProps) {
-  if (!video) return null;
+  if (!video) {
+    return (
+      <section className="relative h-[480px] sm:h-[540px] w-full overflow-hidden bg-zinc-950 flex items-end pb-12">
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0b0d13] via-[#0b0d13]/60 to-zinc-900/40 animate-pulse" />
+        <div className="relative mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 space-y-4">
+          <div className="h-4 w-48 bg-white/10 rounded animate-pulse" />
+          <div className="h-12 w-3/4 max-w-lg bg-white/10 rounded animate-pulse" />
+          <div className="h-4 w-full max-w-md bg-white/5 rounded animate-pulse" />
+          <div className="flex gap-3 pt-2">
+            <div className="h-11 w-36 bg-[#e50914]/40 rounded-lg animate-pulse" />
+            <div className="h-11 w-28 bg-white/10 rounded-lg animate-pulse" />
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="relative h-[480px] sm:h-[540px] w-full overflow-hidden bg-zinc-950">

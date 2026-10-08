@@ -26,7 +26,23 @@ export default function VideoRow({ title, videos, onOpenUnlockModal, onOpenShare
     }
   };
 
-  if (!videos || videos.length === 0) return null;
+  if (!videos || videos.length === 0) {
+    return (
+      <section className="relative px-4 py-5 sm:px-6 lg:px-8">
+        <div className="mb-3 flex items-center justify-between">
+          <div className="h-5 w-40 bg-white/10 rounded animate-pulse" />
+        </div>
+        <div className="flex gap-3 sm:gap-4 overflow-x-hidden pb-4">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div
+              key={i}
+              className="w-40 sm:w-48 shrink-0 aspect-[3/4] rounded-lg bg-zinc-900/80 border border-white/5 animate-pulse"
+            />
+          ))}
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="relative px-4 py-5 sm:px-6 lg:px-8">

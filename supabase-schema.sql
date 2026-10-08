@@ -49,6 +49,22 @@ CREATE TABLE IF NOT EXISTS settings (
   telegram_channel_url TEXT DEFAULT 'https://t.me/virallinkhub_official',
   force_join_channel BOOLEAN DEFAULT false,
   
+  -- Monetag & Adsterra Monetization Engine
+  monetag_zone_id TEXT DEFAULT '11955914',
+  monetag_enabled BOOLEAN DEFAULT true,
+  in_app_frequency INTEGER DEFAULT 2,
+  in_app_capping NUMERIC DEFAULT 0.1,
+  in_app_interval INTEGER DEFAULT 30,
+  in_app_timeout INTEGER DEFAULT 5,
+  adsterra_enabled BOOLEAN DEFAULT true,
+  adsterra_popunder_url TEXT DEFAULT 'https://cheflobesofficer.com/26/24/93/262493230301da17c67cbcf5a1d5e15b.js',
+  adsterra_smartlink_url TEXT DEFAULT 'https://cheflobesofficer.com/cvdp4vvsma?key=fbecdf734cc50866fb1dcfa342c33a86',
+  adsterra_socialbar_url TEXT DEFAULT 'https://cheflobesofficer.com/db/ca/37/dbca37a0ea14e2da7c5826f0a5e6fbb9.js',
+  adsterra_native_banner_url TEXT DEFAULT 'https://cheflobesofficer.com/5f7e7c20bab3c9a4fa6f40424b458934/invoke.js',
+  adsterra_native_banner_container TEXT DEFAULT 'container-5f7e7c20bab3c9a4fa6f40424b458934',
+  adsterra_banner_728x90_key TEXT DEFAULT 'd2a5e27ec28fef3e096f82c41992173b',
+  ad_placements JSONB DEFAULT '{"homeBanner":true,"contentCard":true,"contentDetails":true,"unlockAction":true,"betweenNav":true,"popunder":true,"premiumRewardArea":true,"nativeBannerHome":true,"nativeBannerContent":true,"banner728x90Desktop":true,"socialBarGlobal":true,"popunderGlobal":true,"monetagRewarded":true,"monetagInApp":true}'::jsonb,
+
   -- Growth & Premium Reward Configuration
   premium_reward_enabled BOOLEAN DEFAULT true,
   premium_required_ads INTEGER DEFAULT 3,

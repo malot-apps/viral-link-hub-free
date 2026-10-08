@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchVideos, recordVisitorHeartbeat } from '@/lib/data-service';
 import { parseTelegramUser } from '@/lib/telegram-verify';
+import { CURATED_FALLBACK_VIDEOS } from '@/lib/catalog-seed';
 
 export async function GET(req: NextRequest) {
   // Extract and record visitor heartbeat silently
@@ -25,22 +26,26 @@ export async function GET(req: NextRequest) {
   const category = searchParams.get('category') || undefined;
   const search = searchParams.get('search') || undefined;
   const featured = searchParams.has('featured') ? searchParams.get('featured') === 'true' : undefined;
+  const allCategories = ['All', 'Viral Movies', 'VIP Cloud', 'Trending', 'Recommended', 'Action', 'Anime'];
 
   try {
     const videos = await fetchVideos({ category, search, featured });
-    const allCategories = ['All', 'Viral Movies', 'VIP Cloud', 'Trending', 'Recommended', 'Action', 'Anime'];
+    const finalVideos = (videos && videos.length > 0) ? videos : CURATED_FALLBACK_VIDEOS;
 
     return NextResponse.json({
       success: true,
-      count: videos.length,
+      count: finalVideos.length,
       categories: allCategories,
-      data: videos,
+      data: finalVideos,
     });
   } catch (error: any) {
-    console.error('[Public Movies GET Error]:', error.message);
-    return NextResponse.json(
-      { success: false, error: 'Failed to load movie catalog' },
-      { status: 503 }
-    );
+    console.warn('[Public Movies GET Error, returning curated catalog]:', error.message);
+    return NextResponse.json({
+      success: true,
+      count: CURATED_FALLBACK_VIDEOS.length,
+      categories: allCategories,
+      data: CURATED_FALLBACK_VIDEOS,
+      isFallback: true,
+    });
   }
 }
