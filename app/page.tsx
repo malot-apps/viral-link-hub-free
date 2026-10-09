@@ -274,7 +274,7 @@ export default function HomePage() {
     [movies]
   );
   const teraboxExclusives = useMemo(
-    () => movies.filter((m) => m.category === 'Terabox Cloud' || m.category === 'Terabox Exclusives' || m.targetType === 'terabox'),
+    () => movies.filter((m) => m.category === 'Terabox Cloud' || m.category === 'Terabox Exclusives' || m.category === 'bufferless ⚡ Exclusives' || m.targetType === 'terabox'),
     [movies]
   );
   const trendingNowVideos = useMemo(
@@ -366,7 +366,7 @@ export default function HomePage() {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search movies, Terabox links, anime, clips..."
+                  placeholder="Search movies, bufferless ⚡ links, anime, clips..."
                   className="w-full rounded-lg border border-white/10 bg-zinc-900/90 py-2.5 pl-10 pr-4 text-xs sm:text-sm text-white placeholder-zinc-500 backdrop-blur-md transition-colors focus:border-[#e50914] focus:outline-none"
                 />
                 {searchQuery && (
@@ -383,7 +383,7 @@ export default function HomePage() {
               <div className="flex items-center gap-3 text-xs text-zinc-400">
                 <span className="flex items-center gap-1">
                   <Cloud className="h-3.5 w-3.5 text-emerald-400" />
-                  <span>Direct Terabox Mirrors</span>
+                  <span>Direct bufferless ⚡ Mirrors</span>
                 </span>
                 <span aria-hidden="true" className="text-zinc-600">·</span>
                 <span>
@@ -559,7 +559,7 @@ export default function HomePage() {
               />
 
               <VideoRow
-                title="☁️ Terabox Exclusives"
+                title="⚡ bufferless ⚡ Exclusives"
                 videos={teraboxExclusives}
                 onOpenUnlockModal={handleOpenUnlockModal}
                 onOpenShare={(video) => {
@@ -611,7 +611,7 @@ export default function HomePage() {
         </main>
       )}
 
-      {/* Terabox Link Unlocker & Ad Monetization Modal */}
+      {/* bufferless ⚡ Link Unlocker & Ad Monetization Modal */}
       <UnlockModal
         video={selectedVideo}
         isOpen={isUnlockModalOpen}

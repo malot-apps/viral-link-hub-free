@@ -235,7 +235,7 @@ export default function PremiumRewardModal({
               </span>
             </div>
             <p className="text-xs text-emerald-300/80">
-              Enjoy zero ads, instant terabox mirrors, and high-bitrate 4K streaming until expiration.
+              Enjoy zero ads, instant bufferless ⚡ mirrors, and high-bitrate 4K streaming until expiration.
             </p>
           </div>
         ) : (

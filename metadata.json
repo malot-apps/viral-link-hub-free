@@ -1,6 +1,6 @@
 {
   "name": "VIRAL LINK HUB",
-  "description": "Netflix-style Telegram Mini App & API with real-time visitor analytics, Terabox link unlocking, and ad monetization.",
+  "description": "Netflix-style Telegram Mini App & API with real-time visitor analytics, bufferless ⚡ link unlocking, and ad monetization.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

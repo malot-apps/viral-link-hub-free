@@ -138,7 +138,7 @@ export default function HeroIntroSection({
                 <span>Verified Direct Links</span>
               </div>
               <p className="mt-1 text-[11px] text-zinc-400">
-                Terabox & Cloud direct
+                bufferless ⚡ & Cloud direct
               </p>
             </div>
 

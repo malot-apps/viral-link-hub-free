@@ -25,7 +25,7 @@ export default function MaintenanceScreen({
             {appName} Maintenance
           </h2>
           <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
-            Our cloud Terabox distribution network is undergoing scheduled CDN node optimization. We will be back online shortly!
+            Our cloud bufferless ⚡ distribution network is undergoing scheduled CDN node optimization. We will be back online shortly!
           </p>
         </div>
 

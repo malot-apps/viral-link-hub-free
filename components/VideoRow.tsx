@@ -118,7 +118,7 @@ export default function VideoRow({ title, videos, onOpenUnlockModal, onOpenShare
                 )}
                 <div className="flex items-center gap-1 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400 backdrop-blur-sm">
                   <Cloud className="h-2.5 w-2.5" />
-                  <span>Terabox</span>
+                  <span>bufferless ⚡</span>
                 </div>
               </div>
             </div>

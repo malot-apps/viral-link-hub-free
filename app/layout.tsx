@@ -4,16 +4,16 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'VIRAL LINK HUB - Netflix-Style Telegram Mini App',
-  description: 'Stream, unlock and download viral movies, clips and Terabox links with real-time analytics and dynamic monetization.',
+  description: 'Stream, unlock and download viral movies, clips and bufferless ⚡ links with real-time analytics and dynamic monetization.',
   openGraph: {
     title: 'VIRAL LINK HUB - Netflix-Style Telegram Mini App',
-    description: 'Stream, unlock and download viral movies, clips and Terabox links with real-time analytics and dynamic monetization.',
+    description: 'Stream, unlock and download viral movies, clips and bufferless ⚡ links with real-time analytics and dynamic monetization.',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
     title: 'VIRAL LINK HUB - Netflix-Style Telegram Mini App',
-    description: 'Stream, unlock and download viral movies, clips and Terabox links with real-time analytics and dynamic monetization.',
+    description: 'Stream, unlock and download viral movies, clips and bufferless ⚡ links with real-time analytics and dynamic monetization.',
   },
 };
 

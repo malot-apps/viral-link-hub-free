@@ -28,7 +28,7 @@ export default function MobileBottomNav({
   const categories = [
     { label: 'All Collections', id: 'All', icon: Zap },
     { label: 'Viral Movies', id: 'Viral Movies', icon: Film },
-    { label: 'Terabox Exclusives', id: 'Terabox Exclusives', icon: Cloud },
+    { label: 'bufferless ⚡ Exclusives', id: 'bufferless ⚡ Exclusives', icon: Cloud },
     { label: 'Trending Now', id: 'Trending Now', icon: Flame },
     { label: 'Recommended VIP', id: 'Recommended', icon: Sparkles },
     { label: 'Anime & Series', id: 'Anime', icon: Layers },
@@ -57,7 +57,7 @@ export default function MobileBottomNav({
     if (onOpenPremiumModal) {
       onOpenPremiumModal();
     } else {
-      onSelectCategory('Terabox Exclusives');
+      onSelectCategory('bufferless ⚡ Exclusives');
     }
   };
 
