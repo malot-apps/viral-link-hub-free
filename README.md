@@ -228,6 +228,8 @@ All endpoints are built using Next.js 15 Route Handlers and return standardized 
 | `GET` | `/api/v1/movies/:id` | Single movie metadata | None |
 | `POST`| `/api/v1/movies/:id/view` | Increments verified view count | None |
 | `POST`| `/api/v1/movies/:id/click-ad`| Logs sponsor ad click on movie | None |
+| `GET` | `/api/v1/telegram/destinations` | Active Telegram channels, groups, & bots | `?platform=website` or `?platform=miniapp` |
+| `POST`| `/api/v1/telegram/verify-membership` | Server-side getChatMember membership check | `{ "destinationId": "...", "userId": "..." }` |
 | `POST`| `/api/v1/analytics/ping` | 30s heartbeat tracking active sessions | Body: `{ "userId": "108492041" }` |
 | `POST`| `/api/v1/analytics/ad-event` | Tracks impression, click, unlock events | Body: `{ "event": "ad_click", "userId": "..." }` |
 | `POST`| `/api/v1/analytics/ad-click` | Legacy ad click tracker | Body: `{ "userId": "..." }` |
@@ -249,8 +251,13 @@ Protected via `vlh_admin_session` HttpOnly cookie or `Authorization: Bearer <tok
 | `GET`  | `/api/v1/admin/auth/me` | Validates session token & returns admin user | None |
 | `GET`  | `/api/v1/admin/stats` | Live active users, views, visitors, ad clicks | None |
 | `GET`  | `/api/v1/admin/growth` | Referral funnel, conversion rates, VIP passes | `?period=30d` |
+| `GET`  | `/api/v1/admin/destinations` | List all Telegram channels, groups, bots | None |
+| `POST` | `/api/v1/admin/destinations` | Create a new Telegram destination | Destination JSON payload |
+| `PUT`  | `/api/v1/admin/destinations/:id` | Update an existing destination | Partial destination updates |
+| `DELETE`| `/api/v1/admin/destinations/:id`| Delete destination from database | None |
+| `POST` | `/api/v1/admin/destinations/reorder` | Update display order of destinations | `{ "orderedIds": ["..."] }` |
 | `GET`  | `/api/v1/admin/settings` | Retrieves administrative platform config | None |
-| `PUT`  | `/api/v1/admin/settings` | Updates ad links, channel rules, maintenance | `{ "globalAdLink": "...", ... }` |
+| `PUT`  | `/api/v1/admin/settings` | Updates ad links, channel rules, intro hero | `{ "globalAdLink": "...", ... }` |
 | `GET`  | `/api/v1/admin/videos` | Full video catalog (unmasked stream URLs) | `?search=...` |
 | `POST` | `/api/v1/admin/videos` | Creates a new video entry | `{ "title": "...", "streamUrl": "...", ... }` |
 | `PUT`  | `/api/v1/admin/videos/:id` | Updates an existing video entry | `{ "title": "Updated", ... }` |

@@ -91,6 +91,17 @@ export interface ISettings {
   maxAdsPerDay?: number;
   adPlacements?: IAdPlacements;
   abTesting?: IABTestingConfig;
+  // Professional Intro / Hero & Community Section
+  introTitle?: string;
+  introSubtitle?: string;
+  introDescription?: string;
+  introPrimaryCtaText?: string;
+  introPrimaryCtaUrl?: string;
+  introSecondaryCtaText?: string;
+  introSecondaryCtaUrl?: string;
+  communitySectionTitle?: string;
+  communitySectionSubtitle?: string;
+  showIntroHero?: boolean;
 }
 
 export interface IUserProfile {
@@ -227,6 +238,36 @@ export interface ITelegramEntity {
   createdAt?: string;
 }
 
+export type TelegramDestinationType = 'channel' | 'group' | 'bot';
+
+export interface ITelegramDestination {
+  id: string;
+  title: string;
+  description: string;
+  type: TelegramDestinationType;
+  url: string;
+  username: string;
+  chatId: string;
+  icon: string;
+  isRequired: boolean;
+  showOnWebsite: boolean;
+  showOnMiniapp: boolean;
+  orderIndex: number;
+  isActive: boolean;
+  memberCountDisplay?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ITelegramVerificationResponse {
+  verified: boolean;
+  status: 'creator' | 'administrator' | 'member' | 'restricted' | 'left' | 'kicked' | 'unverified' | 'unconfigured' | 'error' | 'manual_required' | string;
+  serverVerified: boolean;
+  message: string;
+  destinationId?: string;
+  timestamp?: string;
+}
+
 export interface IGrowthMission {
   id: string;
   type: 'join_channel' | 'join_group' | 'start_bot' | 'open_miniapp' | 'invite_friends';
@@ -272,4 +313,23 @@ export interface ITelegramUser {
   language_code?: string;
   is_premium?: boolean;
   photo_url?: string;
+}
+
+declare global {
+  interface Window {
+    Telegram?: {
+      WebApp?: {
+        initData: string;
+        initDataUnsafe?: {
+          user?: ITelegramUser;
+        };
+        expand: () => void;
+        ready: () => void;
+        openTelegramLink?: (url: string) => void;
+        openLink?: (url: string, options?: { try_instant_view?: boolean }) => void;
+        close?: () => void;
+        themeParams?: Record<string, string>;
+      };
+    };
+  }
 }

@@ -1,4 +1,5 @@
-import { IVideo, ISettings, IVisitorLog, ITelegramEntity, IGrowthMission, IUserMissionProgress, ICampaign } from './types';
+import { IVideo, ISettings, IVisitorLog, ITelegramEntity, ITelegramDestination, IGrowthMission, IUserMissionProgress, ICampaign } from './types';
+import { INITIAL_TELEGRAM_DESTINATIONS } from './catalog-seed';
 
 /**
  * Isolated Demo Data Store
@@ -167,6 +168,19 @@ const demoSettings: ISettings = {
     variantA: 'Direct Link Sponsor',
     variantB: 'Native Unlock Gate',
   },
+  // Professional Intro / Hero & Community Section
+  introTitle: 'Unlimited Cloud Entertainment & Instant Streaming',
+  introSubtitle: 'VIP Fast-Track Access · Official Telegram Community Hub',
+  introDescription:
+    'Discover exclusive high-speed cloud movies, viral anime releases, and direct VIP links. Join our verified Telegram ecosystem to unlock 4K content with instant direct access.',
+  introPrimaryCtaText: 'Join Official Community',
+  introPrimaryCtaUrl: 'https://t.me/virallinkhub_official',
+  introSecondaryCtaText: 'Browse Movies',
+  introSecondaryCtaUrl: '#browse-catalog',
+  communitySectionTitle: 'Official Telegram Ecosystem',
+  communitySectionSubtitle:
+    'Join our verified channels, discussion groups, and interactive bots for direct links and member-only updates',
+  showIntroHero: true,
 };
 
 declare global {
@@ -192,6 +206,7 @@ declare global {
     events: any[];
     userAdSessions: Map<string, number[]>;
     entities: ITelegramEntity[];
+    destinations: ITelegramDestination[];
     missions: IGrowthMission[];
     userMissionProgress: Map<string, IUserMissionProgress[]>;
     campaigns: ICampaign[];
@@ -419,6 +434,7 @@ if (!global.__DEMO_DATA_STORE__) {
         createdAt: new Date().toISOString(),
       },
     ],
+    destinations: [...INITIAL_TELEGRAM_DESTINATIONS],
     missions: [
       {
         id: 'demo-mission-1',

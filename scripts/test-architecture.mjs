@@ -180,11 +180,72 @@ async function runTests() {
     headers: { Cookie: cookieHeader },
   });
 
-  await testEndpoint('Admin Settings Update', '/api/v1/admin/settings', {
+  await testEndpoint('Admin Settings Update (Intro & Banner)', '/api/v1/admin/settings', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', Cookie: cookieHeader },
-    body: JSON.stringify({ announcementBannerText: '🔥 Verified test banner' }),
+    body: JSON.stringify({
+      announcementBannerText: '🔥 Verified test banner',
+      introTitle: 'Verified Test Cloud Streaming Hub',
+      introSubtitle: 'VIP Access · Test Suite 2026',
+      showIntroHero: true,
+    }),
   });
+
+  // 8.1 Telegram Destinations & Verification Tests
+  await testEndpoint('Public Telegram Destinations List', '/api/v1/telegram/destinations');
+  await testEndpoint('Public Telegram Destinations (MiniApp Filter)', '/api/v1/telegram/destinations?platform=miniapp');
+
+  await testEndpoint('Telegram Membership Verification (Bot limitation check)', '/api/v1/telegram/verify-membership', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      destinationId: 'tg-dest-cloud-delivery-bot',
+      userId: 108492041,
+    }),
+  });
+
+  await testEndpoint('Admin Destinations List (Authenticated)', '/api/v1/admin/destinations', {
+    headers: { Cookie: cookieHeader },
+  });
+
+  const createDestRes = await testEndpoint('Admin Destination Create', '/api/v1/admin/destinations', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Cookie: cookieHeader },
+    body: JSON.stringify({
+      title: '[TEST] Automated Test Channel',
+      description: 'Test channel for destination CRUD verification',
+      type: 'channel',
+      url: 'https://t.me/test_automated_channel',
+      username: '@test_automated_channel',
+      chatId: '@test_automated_channel',
+      icon: 'bell',
+      isRequired: true,
+      showOnWebsite: true,
+      showOnMiniapp: true,
+      orderIndex: 99,
+      isActive: true,
+    }),
+  });
+
+  const createdDestId = createDestRes.data?.data?.id;
+  if (createdDestId) {
+    await testEndpoint('Admin Destination Update', `/api/v1/admin/destinations/${createdDestId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Cookie: cookieHeader },
+      body: JSON.stringify({ title: '[TEST] Updated Destination Title', isRequired: false }),
+    });
+
+    await testEndpoint('Admin Destination Reorder', '/api/v1/admin/destinations/reorder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookieHeader },
+      body: JSON.stringify({ orderedIds: [createdDestId] }),
+    });
+
+    await testEndpoint('Admin Destination Delete', `/api/v1/admin/destinations/${createdDestId}`, {
+      method: 'DELETE',
+      headers: { Cookie: cookieHeader },
+    });
+  }
 
   // 9. Analytics & Audit
   await testEndpoint('Admin Dashboard Stats', '/api/v1/admin/stats', {

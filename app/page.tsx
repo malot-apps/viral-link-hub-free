@@ -15,6 +15,8 @@ import ShareModal from '@/components/ShareModal';
 import GlobalAdManager from '@/components/ads/GlobalAdManager';
 import AdsterraNativeBanner from '@/components/ads/AdsterraNativeBanner';
 import AdsterraBanner728x90 from '@/components/ads/AdsterraBanner728x90';
+import HeroIntroSection from '@/components/HeroIntroSection';
+import TelegramJoinCards from '@/components/TelegramJoinCards';
 import { isTelegramWebApp } from '@/lib/ad-manager';
 import { IVideo, ISettings, ITelegramUser, IUserProfile } from '@/lib/types';
 import { CURATED_FALLBACK_VIDEOS, DEFAULT_APP_SETTINGS } from '@/lib/catalog-seed';
@@ -30,6 +32,9 @@ declare global {
         };
         expand: () => void;
         ready: () => void;
+        openTelegramLink?: (url: string) => void;
+        openLink?: (url: string, options?: { try_instant_view?: boolean }) => void;
+        close?: () => void;
         themeParams?: Record<string, string>;
       };
     };
@@ -111,6 +116,7 @@ export default function HomePage() {
   // Live Stats & Heartbeat
   const [liveUsersCount, setLiveUsersCount] = useState<number>(1);
   const [isTelegram, setIsTelegram] = useState<boolean>(false);
+  const [rawInitData, setRawInitData] = useState<string>('');
 
   // Initialize Telegram WebApp or local storage asynchronously
   useEffect(() => {
@@ -121,6 +127,9 @@ export default function HomePage() {
         tg.ready();
         tg.expand();
 
+        if (tg.initData) {
+          setRawInitData(tg.initData);
+        }
         if (tg.initDataUnsafe?.user) {
           setTelegramUser(tg.initDataUnsafe.user);
         }
@@ -321,16 +330,30 @@ export default function HomePage() {
         />
       ) : (
         <main className="flex-1 pb-16">
-          {/* Hero Featured Video Section (Shown when viewing Browse/All and no search query) */}
+          {/* Professional Intro / Hero Section */}
           {activeCategory === 'All' && !searchQuery.trim() && (
-            <HeroFeatured
-              video={featuredVideo}
-              onOpenUnlockModal={handleOpenUnlockModal}
-              onOpenShare={(video) => {
-                setShareTargetVideo(video);
-                setIsShareModalOpen(true);
+            <HeroIntroSection
+              settings={settings}
+              isTelegram={isTelegram}
+              onBrowseCatalog={() => {
+                const el = document.getElementById('browse-catalog');
+                el?.scrollIntoView({ behavior: 'smooth' });
               }}
             />
+          )}
+
+          {/* Hero Featured Video Section (Shown when viewing Browse/All and no search query) */}
+          {activeCategory === 'All' && !searchQuery.trim() && (
+            <div id="browse-catalog">
+              <HeroFeatured
+                video={featuredVideo}
+                onOpenUnlockModal={handleOpenUnlockModal}
+                onOpenShare={(video) => {
+                  setShareTargetVideo(video);
+                  setIsShareModalOpen(true);
+                }}
+              />
+            </div>
           )}
 
           {/* Search & Quick Filter Bar */}
@@ -574,6 +597,14 @@ export default function HomePage() {
                   setShareTargetVideo(video);
                   setIsShareModalOpen(true);
                 }}
+              />
+
+              {/* Official Telegram Ecosystem Join Cards */}
+              <TelegramJoinCards
+                settings={settings}
+                isTelegram={isTelegram}
+                telegramUserId={telegramUser.id}
+                initData={rawInitData}
               />
             </div>
           )}

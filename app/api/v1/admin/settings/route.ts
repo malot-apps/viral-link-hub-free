@@ -180,6 +180,38 @@ export async function PUT(req: NextRequest) {
       updatePayload.maxPopundersPerSession = Math.max(0, Number(body.maxPopundersPerSession));
     }
 
+    // Professional Intro Hero & Community section configuration
+    if (body.introTitle !== undefined) {
+      updatePayload.introTitle = sanitizeString(body.introTitle);
+    }
+    if (body.introSubtitle !== undefined) {
+      updatePayload.introSubtitle = sanitizeString(body.introSubtitle);
+    }
+    if (body.introDescription !== undefined) {
+      updatePayload.introDescription = sanitizeString(body.introDescription);
+    }
+    if (body.introPrimaryCtaText !== undefined) {
+      updatePayload.introPrimaryCtaText = sanitizeString(body.introPrimaryCtaText);
+    }
+    if (body.introPrimaryCtaUrl !== undefined) {
+      updatePayload.introPrimaryCtaUrl = String(body.introPrimaryCtaUrl).trim();
+    }
+    if (body.introSecondaryCtaText !== undefined) {
+      updatePayload.introSecondaryCtaText = sanitizeString(body.introSecondaryCtaText);
+    }
+    if (body.introSecondaryCtaUrl !== undefined) {
+      updatePayload.introSecondaryCtaUrl = String(body.introSecondaryCtaUrl).trim();
+    }
+    if (body.communitySectionTitle !== undefined) {
+      updatePayload.communitySectionTitle = sanitizeString(body.communitySectionTitle);
+    }
+    if (body.communitySectionSubtitle !== undefined) {
+      updatePayload.communitySectionSubtitle = sanitizeString(body.communitySectionSubtitle);
+    }
+    if (body.showIntroHero !== undefined) {
+      updatePayload.showIntroHero = Boolean(body.showIntroHero);
+    }
+
     const previousSettings = await fetchSettings();
     const updated = await modifySettings(updatePayload);
 

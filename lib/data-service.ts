@@ -1,7 +1,7 @@
 import { getSupabaseAdminClient, isSupabaseConfigured } from './supabase';
 import { isProduction, isDemo, config, validateProductionConfig } from './config';
 import { demoStore } from './demo-store';
-import { CURATED_FALLBACK_VIDEOS, DEFAULT_APP_SETTINGS } from './catalog-seed';
+import { CURATED_FALLBACK_VIDEOS, DEFAULT_APP_SETTINGS, INITIAL_TELEGRAM_DESTINATIONS } from './catalog-seed';
 import {
   IVideo,
   ISettings,
@@ -10,6 +10,7 @@ import {
   IReferralLeaderboardEntry,
   IGrowthAnalytics,
   ITelegramEntity,
+  ITelegramDestination,
   IGrowthMission,
   IUserMissionProgress,
   ICampaign,
@@ -190,6 +191,17 @@ export function mapSettingsFromDb(row: any): ISettings {
       monetagRewarded: row.ad_placements?.monetagRewarded ?? true,
       monetagInApp: row.ad_placements?.monetagInApp ?? true,
     },
+    // Professional Intro / Hero & Community Section
+    introTitle: row.intro_title || DEFAULT_APP_SETTINGS.introTitle,
+    introSubtitle: row.intro_subtitle || DEFAULT_APP_SETTINGS.introSubtitle,
+    introDescription: row.intro_description || DEFAULT_APP_SETTINGS.introDescription,
+    introPrimaryCtaText: row.intro_primary_cta_text || DEFAULT_APP_SETTINGS.introPrimaryCtaText,
+    introPrimaryCtaUrl: row.intro_primary_cta_url || DEFAULT_APP_SETTINGS.introPrimaryCtaUrl,
+    introSecondaryCtaText: row.intro_secondary_cta_text || DEFAULT_APP_SETTINGS.introSecondaryCtaText,
+    introSecondaryCtaUrl: row.intro_secondary_cta_url || DEFAULT_APP_SETTINGS.introSecondaryCtaUrl,
+    communitySectionTitle: row.community_section_title || DEFAULT_APP_SETTINGS.communitySectionTitle,
+    communitySectionSubtitle: row.community_section_subtitle || DEFAULT_APP_SETTINGS.communitySectionSubtitle,
+    showIntroHero: row.show_intro_hero !== false,
   };
 }
 
@@ -560,6 +572,18 @@ export async function modifySettings(updates: Partial<ISettings>): Promise<ISett
     if (updates.adsterraNativeBannerContainer !== undefined) dbPayload.adsterra_native_banner_container = updates.adsterraNativeBannerContainer;
     if (updates.adsterraBanner728x90Key !== undefined) dbPayload.adsterra_banner_728x90_key = updates.adsterraBanner728x90Key;
     if (updates.adPlacements !== undefined) dbPayload.ad_placements = updates.adPlacements;
+
+    // Intro Hero & Community Section
+    if (updates.introTitle !== undefined) dbPayload.intro_title = updates.introTitle;
+    if (updates.introSubtitle !== undefined) dbPayload.intro_subtitle = updates.introSubtitle;
+    if (updates.introDescription !== undefined) dbPayload.intro_description = updates.introDescription;
+    if (updates.introPrimaryCtaText !== undefined) dbPayload.intro_primary_cta_text = updates.introPrimaryCtaText;
+    if (updates.introPrimaryCtaUrl !== undefined) dbPayload.intro_primary_cta_url = updates.introPrimaryCtaUrl;
+    if (updates.introSecondaryCtaText !== undefined) dbPayload.intro_secondary_cta_text = updates.introSecondaryCtaText;
+    if (updates.introSecondaryCtaUrl !== undefined) dbPayload.intro_secondary_cta_url = updates.introSecondaryCtaUrl;
+    if (updates.communitySectionTitle !== undefined) dbPayload.community_section_title = updates.communitySectionTitle;
+    if (updates.communitySectionSubtitle !== undefined) dbPayload.community_section_subtitle = updates.communitySectionSubtitle;
+    if (updates.showIntroHero !== undefined) dbPayload.show_intro_hero = updates.showIntroHero;
 
     const { data, error } = await client
       .from('settings')
@@ -1670,6 +1694,283 @@ export async function removeTelegramEntity(id: string): Promise<boolean> {
   const initialLen = demoStore.entities.length;
   demoStore.entities = demoStore.entities.filter((e) => e.id !== id);
   return demoStore.entities.length < initialLen;
+}
+
+// ============================================================================
+// TELEGRAM DESTINATIONS (Authoritative Multi-Channel / Group / Bot Registry)
+// ============================================================================
+
+export function mapDestinationFromDb(row: any): ITelegramDestination {
+  if (!row) return {} as ITelegramDestination;
+  return {
+    id: row.id,
+    title: row.title || '',
+    description: row.description || '',
+    type: (row.type as any) || 'channel',
+    url: row.url || '',
+    username: row.username || '',
+    chatId: row.chat_id || '',
+    icon: row.icon || 'send',
+    isRequired: Boolean(row.is_required),
+    showOnWebsite: row.show_on_website !== false,
+    showOnMiniapp: row.show_on_miniapp !== false,
+    orderIndex: typeof row.order_index === 'number' ? row.order_index : 0,
+    isActive: row.is_active !== false,
+    memberCountDisplay: row.member_count_display || '',
+    createdAt: row.created_at || new Date().toISOString(),
+    updatedAt: row.updated_at || new Date().toISOString(),
+  };
+}
+
+function filterDestinationsFallback(
+  destinations: ITelegramDestination[],
+  options?: { activeOnly?: boolean; platform?: 'website' | 'miniapp' }
+): ITelegramDestination[] {
+  let list = [...(destinations || [])];
+  if (options?.activeOnly) {
+    list = list.filter((d) => d.isActive !== false);
+  }
+  if (options?.platform === 'website') {
+    list = list.filter((d) => d.showOnWebsite !== false);
+  }
+  if (options?.platform === 'miniapp') {
+    list = list.filter((d) => d.showOnMiniapp !== false);
+  }
+  return list.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
+}
+
+export async function fetchTelegramDestinations(options?: {
+  activeOnly?: boolean;
+  platform?: 'website' | 'miniapp';
+}): Promise<ITelegramDestination[]> {
+  const client = getActiveClient();
+  if (client) {
+    try {
+      let query = client
+        .from('telegram_destinations')
+        .select('*')
+        .order('order_index', { ascending: true })
+        .order('created_at', { ascending: true });
+
+      if (options?.activeOnly) {
+        query = query.eq('is_active', true);
+      }
+      if (options?.platform === 'website') {
+        query = query.eq('show_on_website', true);
+      }
+      if (options?.platform === 'miniapp') {
+        query = query.eq('show_on_miniapp', true);
+      }
+
+      const { data, error } = await withTimeout(query, 5000, 'fetchTelegramDestinations timeout');
+
+      if (error) {
+        console.warn('[Supabase fetchTelegramDestinations error]:', error.message);
+        return filterDestinationsFallback(demoStore?.destinations || INITIAL_TELEGRAM_DESTINATIONS, options);
+      }
+
+      if (data && data.length > 0) {
+        return data.map(mapDestinationFromDb);
+      }
+
+      // Auto-seed starter destinations if table is empty
+      try {
+        const seedRows = INITIAL_TELEGRAM_DESTINATIONS.map((d) => ({
+          id: d.id,
+          title: d.title,
+          description: d.description,
+          type: d.type,
+          url: d.url,
+          username: d.username,
+          chat_id: d.chatId,
+          icon: d.icon,
+          is_required: d.isRequired,
+          show_on_website: d.showOnWebsite,
+          show_on_miniapp: d.showOnMiniapp,
+          order_index: d.orderIndex,
+          is_active: d.isActive,
+          member_count_display: d.memberCountDisplay,
+        }));
+        await client.from('telegram_destinations').insert(seedRows);
+        return filterDestinationsFallback(INITIAL_TELEGRAM_DESTINATIONS, options);
+      } catch {
+        return filterDestinationsFallback(INITIAL_TELEGRAM_DESTINATIONS, options);
+      }
+    } catch (err: any) {
+      console.warn('[Supabase fetchTelegramDestinations exception]:', err?.message);
+      return filterDestinationsFallback(demoStore?.destinations || INITIAL_TELEGRAM_DESTINATIONS, options);
+    }
+  }
+
+  return filterDestinationsFallback(demoStore?.destinations || INITIAL_TELEGRAM_DESTINATIONS, options);
+}
+
+export async function fetchTelegramDestinationById(id: string): Promise<ITelegramDestination | null> {
+  const client = getActiveClient();
+  if (client) {
+    try {
+      const { data, error } = await client
+        .from('telegram_destinations')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (!error && data) {
+        return mapDestinationFromDb(data);
+      }
+    } catch {
+      // fallback
+    }
+  }
+
+  const found = (demoStore?.destinations || INITIAL_TELEGRAM_DESTINATIONS).find((d) => d.id === id);
+  return found || null;
+}
+
+export async function createTelegramDestination(
+  destination: Omit<ITelegramDestination, 'id' | 'createdAt' | 'updatedAt'>
+): Promise<ITelegramDestination> {
+  const client = getActiveClient();
+  if (client) {
+    const { data, error } = await client
+      .from('telegram_destinations')
+      .insert({
+        title: destination.title,
+        description: destination.description || '',
+        type: destination.type,
+        url: destination.url,
+        username: destination.username || '',
+        chat_id: destination.chatId || '',
+        icon: destination.icon || 'send',
+        is_required: Boolean(destination.isRequired),
+        show_on_website: destination.showOnWebsite !== false,
+        show_on_miniapp: destination.showOnMiniapp !== false,
+        order_index: destination.orderIndex ?? 0,
+        is_active: destination.isActive !== false,
+        member_count_display: destination.memberCountDisplay || '',
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[Supabase createTelegramDestination error]:', error.message);
+      throw error;
+    }
+
+    return mapDestinationFromDb(data);
+  }
+
+  const newDest: ITelegramDestination = {
+    ...destination,
+    id: `demo-dest-${Date.now()}`,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  if (!demoStore.destinations) {
+    demoStore.destinations = [...INITIAL_TELEGRAM_DESTINATIONS];
+  }
+  demoStore.destinations.push(newDest);
+  return newDest;
+}
+
+export async function modifyTelegramDestination(
+  id: string,
+  updates: Partial<ITelegramDestination>
+): Promise<ITelegramDestination | null> {
+  const client = getActiveClient();
+  if (client) {
+    const dbPayload: Record<string, any> = {
+      updated_at: new Date().toISOString(),
+    };
+    if (updates.title !== undefined) dbPayload.title = updates.title;
+    if (updates.description !== undefined) dbPayload.description = updates.description;
+    if (updates.type !== undefined) dbPayload.type = updates.type;
+    if (updates.url !== undefined) dbPayload.url = updates.url;
+    if (updates.username !== undefined) dbPayload.username = updates.username;
+    if (updates.chatId !== undefined) dbPayload.chat_id = updates.chatId;
+    if (updates.icon !== undefined) dbPayload.icon = updates.icon;
+    if (updates.isRequired !== undefined) dbPayload.is_required = updates.isRequired;
+    if (updates.showOnWebsite !== undefined) dbPayload.show_on_website = updates.showOnWebsite;
+    if (updates.showOnMiniapp !== undefined) dbPayload.show_on_miniapp = updates.showOnMiniapp;
+    if (updates.orderIndex !== undefined) dbPayload.order_index = updates.orderIndex;
+    if (updates.isActive !== undefined) dbPayload.is_active = updates.isActive;
+    if (updates.memberCountDisplay !== undefined) dbPayload.member_count_display = updates.memberCountDisplay;
+
+    const { data, error } = await client
+      .from('telegram_destinations')
+      .update(dbPayload)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[Supabase modifyTelegramDestination error]:', error.message);
+      throw error;
+    }
+
+    return mapDestinationFromDb(data);
+  }
+
+  if (!demoStore.destinations) {
+    demoStore.destinations = [...INITIAL_TELEGRAM_DESTINATIONS];
+  }
+  const idx = demoStore.destinations.findIndex((d) => d.id === id);
+  if (idx !== -1) {
+    demoStore.destinations[idx] = {
+      ...demoStore.destinations[idx],
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    };
+    return demoStore.destinations[idx];
+  }
+  return null;
+}
+
+export async function removeTelegramDestination(id: string): Promise<boolean> {
+  const client = getActiveClient();
+  if (client) {
+    const { error } = await client.from('telegram_destinations').delete().eq('id', id);
+    if (error) {
+      console.error('[Supabase removeTelegramDestination error]:', error.message);
+      throw error;
+    }
+    return true;
+  }
+
+  if (!demoStore.destinations) {
+    demoStore.destinations = [...INITIAL_TELEGRAM_DESTINATIONS];
+  }
+  const prevLen = demoStore.destinations.length;
+  demoStore.destinations = demoStore.destinations.filter((d) => d.id !== id);
+  return demoStore.destinations.length < prevLen;
+}
+
+export async function reorderTelegramDestinations(orderedIds: string[]): Promise<boolean> {
+  const client = getActiveClient();
+  if (client) {
+    try {
+      const updates = orderedIds.map((id, index) =>
+        client.from('telegram_destinations').update({ order_index: index + 1 }).eq('id', id)
+      );
+      await Promise.all(updates);
+      return true;
+    } catch (err: any) {
+      console.error('[Supabase reorderTelegramDestinations error]:', err?.message);
+      throw err;
+    }
+  }
+
+  if (!demoStore.destinations) {
+    demoStore.destinations = [...INITIAL_TELEGRAM_DESTINATIONS];
+  }
+  orderedIds.forEach((id, index) => {
+    const item = demoStore.destinations.find((d) => d.id === id);
+    if (item) {
+      item.orderIndex = index + 1;
+    }
+  });
+  demoStore.destinations.sort((a, b) => a.orderIndex - b.orderIndex);
+  return true;
 }
 
 // ============================================================================

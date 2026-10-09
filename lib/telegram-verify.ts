@@ -50,7 +50,18 @@ export function parseTelegramUser(initData?: string | null): ITelegramUser | nul
  */
 export interface TelegramMembershipResult {
   verified: boolean;
-  status: 'creator' | 'administrator' | 'member' | 'restricted' | 'left' | 'kicked' | 'unverified' | 'unknown';
+  status:
+    | 'creator'
+    | 'administrator'
+    | 'member'
+    | 'restricted'
+    | 'left'
+    | 'kicked'
+    | 'unverified'
+    | 'unconfigured'
+    | 'error'
+    | 'manual_required'
+    | 'unknown';
   serverVerified: boolean;
   message: string;
 }
@@ -61,21 +72,48 @@ export async function verifyTelegramChannelMembership(
   customBotToken?: string
 ): Promise<TelegramMembershipResult> {
   const token = customBotToken || process.env.TELEGRAM_BOT_TOKEN;
+
   if (!token) {
     return {
-      verified: true,
-      status: 'unverified',
+      verified: false,
+      status: 'unconfigured',
       serverVerified: false,
-      message: 'Server verification skipped (TELEGRAM_BOT_TOKEN not set). Verified via client intent.',
+      message:
+        'Server bot token (TELEGRAM_BOT_TOKEN) is not configured in environment. Automated server-side membership verification requires a bot token with admin access to the channel or group.',
+    };
+  }
+
+  if (!chatId || !chatId.trim()) {
+    return {
+      verified: false,
+      status: 'error',
+      serverVerified: false,
+      message: 'Chat ID or channel username is missing for this destination.',
+    };
+  }
+
+  if (!userId) {
+    return {
+      verified: false,
+      status: 'error',
+      serverVerified: false,
+      message: 'Telegram User ID is required to verify membership.',
     };
   }
 
   try {
-    const formattedChatId = chatId.startsWith('@') || chatId.startsWith('-') ? chatId : `@${chatId}`;
-    const url = `https://api.telegram.org/bot${token}/getChatMember?chat_id=${encodeURIComponent(formattedChatId)}&user_id=${encodeURIComponent(userId)}`;
+    const trimmedChatId = chatId.trim();
+    const formattedChatId =
+      trimmedChatId.startsWith('@') || trimmedChatId.startsWith('-')
+        ? trimmedChatId
+        : `@${trimmedChatId}`;
+
+    const url = `https://api.telegram.org/bot${token}/getChatMember?chat_id=${encodeURIComponent(
+      formattedChatId
+    )}&user_id=${encodeURIComponent(userId)}`;
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 4000);
+    const timeout = setTimeout(() => controller.abort(), 5000);
 
     const res = await fetch(url, { signal: controller.signal });
     clearTimeout(timeout);
@@ -85,28 +123,32 @@ export async function verifyTelegramChannelMembership(
     if (data.ok && data.result) {
       const status = data.result.status;
       const isMember = ['creator', 'administrator', 'member', 'restricted'].includes(status);
+
       return {
         verified: isMember,
         status,
         serverVerified: true,
         message: isMember
-          ? `Verified! Telegram status: ${status}`
-          : `User is not a member of ${formattedChatId} (status: ${status})`,
+          ? `Membership verified! (Telegram status: ${status})`
+          : `You are not detected as an active member in ${formattedChatId} (Telegram status: ${status}). Please join the channel and try again.`,
       };
     }
 
+    // Telegram Bot API returned an error (e.g. Chat not found, bot not in chat, user not found)
+    const apiError = data.description || 'Unknown Telegram API error';
     return {
-      verified: true,
-      status: 'unverified',
+      verified: false,
+      status: 'error',
       serverVerified: false,
-      message: `Telegram API note: ${data.description || 'Channel membership verified via client flow'}.`,
+      message: `Could not verify membership: ${apiError}. Note: Ensure the bot is added as an administrator to ${formattedChatId}.`,
     };
   } catch (err: any) {
+    // Network / timeout error: NEVER bypass verification on error
     return {
-      verified: true,
-      status: 'unverified',
+      verified: false,
+      status: 'error',
       serverVerified: false,
-      message: `Network check bypassed (${err.message}). Verified via client.`,
+      message: `Verification network request failed (${err?.message || 'Timeout'}). Verification could not be confirmed.`,
     };
   }
 }

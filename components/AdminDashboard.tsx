@@ -30,9 +30,11 @@ import {
   ChevronRight,
   Info,
   TrendingUp,
+  Send,
 } from 'lucide-react';
 import { IVideo, ISettings, IVisitorLog } from '@/lib/types';
 import AdminGrowthTab from '@/components/AdminGrowthTab';
+import AdminDestinationsTab from '@/components/AdminDestinationsTab';
 import ImageUploader from '@/components/ImageUploader';
 
 interface AdminStats {
@@ -80,7 +82,7 @@ export default function AdminDashboard({
   const [appMode, setAppMode] = useState<'production' | 'demo'>('production');
 
   // Navigation Tabs
-  const [activeTab, setActiveTab] = useState<'analytics' | 'growth' | 'videos' | 'settings' | 'audit' | 'api-console'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'growth' | 'destinations' | 'videos' | 'settings' | 'audit' | 'api-console'>('analytics');
 
   // Login form state
   const [usernameInput, setUsernameInput] = useState('');
@@ -166,6 +168,18 @@ export default function AdminDashboard({
       monetagRewarded: true,
       monetagInApp: true,
     },
+    introTitle: 'Unlimited Cloud Entertainment & Instant Streaming',
+    introSubtitle: 'VIP Fast-Track Access · Official Telegram Community Hub',
+    introDescription:
+      'Discover exclusive high-speed cloud movies, viral anime releases, and direct VIP links. Join our verified Telegram ecosystem to unlock 4K content with instant direct access.',
+    introPrimaryCtaText: 'Join Official Community',
+    introPrimaryCtaUrl: 'https://t.me/virallinkhub_official',
+    introSecondaryCtaText: 'Browse Movies',
+    introSecondaryCtaUrl: '#browse-catalog',
+    communitySectionTitle: 'Official Telegram Ecosystem',
+    communitySectionSubtitle:
+      'Join our verified channels, discussion groups, and interactive bots for direct links and member-only updates',
+    showIntroHero: true,
   });
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [settingsSuccess, setSettingsSuccess] = useState(false);
@@ -813,6 +827,18 @@ export default function AdminDashboard({
           </button>
 
           <button
+            onClick={() => setActiveTab('destinations')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold tracking-wide transition whitespace-nowrap ${
+              activeTab === 'destinations'
+                ? 'bg-[#0088cc] text-white shadow-md shadow-sky-600/20'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Send className="w-4 h-4 text-sky-400" />
+            <span>Telegram Destination Hub</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('videos')}
             className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold tracking-wide transition whitespace-nowrap ${
               activeTab === 'videos'
@@ -1021,6 +1047,15 @@ export default function AdminDashboard({
               onUpdateSettings={handleUpdatePartialSettings}
               appMode={appMode}
             />
+          </div>
+        )}
+
+        {/* ------------------------------------------------------------- */}
+        {/* TAB: TELEGRAM DESTINATION MANAGER                             */}
+        {/* ------------------------------------------------------------- */}
+        {activeTab === 'destinations' && (
+          <div className="space-y-6">
+            <AdminDestinationsTab appMode={appMode} />
           </div>
         )}
 
@@ -1615,6 +1650,174 @@ export default function AdminDashboard({
                       <span>{settingsForm.forceJoinChannel ? 'Forced Subscription Required' : 'Optional'}</span>
                       <span className={`w-2.5 h-2.5 rounded-full ${settingsForm.forceJoinChannel ? 'bg-sky-400' : 'bg-slate-600'}`} />
                     </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* PROFESSIONAL INTRO / HERO & COMMUNITY CONFIGURATION */}
+              <div className="space-y-4 pt-4 border-t border-white/5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-xs font-bold text-sky-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-sky-400" />
+                      <span>Professional Intro & Hero Section</span>
+                    </h4>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Customize the premium headline, badges, CTAs, and community section text across Website & Telegram Mini App.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSettingsForm({
+                        ...settingsForm,
+                        showIntroHero: settingsForm.showIntroHero === false ? true : false,
+                      })
+                    }
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition border ${
+                      settingsForm.showIntroHero !== false
+                        ? 'bg-sky-500/20 border-sky-500/40 text-sky-300'
+                        : 'bg-slate-800 border-white/10 text-slate-400'
+                    }`}
+                  >
+                    {settingsForm.showIntroHero !== false ? 'Hero Active' : 'Hidden'}
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                      Hero Main Headline (Title)
+                    </label>
+                    <input
+                      type="text"
+                      value={settingsForm.introTitle || ''}
+                      onChange={(e) =>
+                        setSettingsForm({ ...settingsForm, introTitle: e.target.value })
+                      }
+                      placeholder="Unlimited Cloud Entertainment & Instant Streaming"
+                      className="w-full bg-[#181d2c] border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-sky-500 transition"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                      Subtitle / Kicker Badge
+                    </label>
+                    <input
+                      type="text"
+                      value={settingsForm.introSubtitle || ''}
+                      onChange={(e) =>
+                        setSettingsForm({ ...settingsForm, introSubtitle: e.target.value })
+                      }
+                      placeholder="VIP Fast-Track Access · Official Telegram Community Hub"
+                      className="w-full bg-[#181d2c] border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-sky-500 transition"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                      Hero Description Text
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={settingsForm.introDescription || ''}
+                      onChange={(e) =>
+                        setSettingsForm({ ...settingsForm, introDescription: e.target.value })
+                      }
+                      placeholder="Discover exclusive high-speed cloud movies, viral anime releases, and direct VIP links."
+                      className="w-full bg-[#181d2c] border border-white/10 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-sky-500 transition resize-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                      Primary CTA Button Text
+                    </label>
+                    <input
+                      type="text"
+                      value={settingsForm.introPrimaryCtaText || ''}
+                      onChange={(e) =>
+                        setSettingsForm({ ...settingsForm, introPrimaryCtaText: e.target.value })
+                      }
+                      placeholder="Join Official Community"
+                      className="w-full bg-[#181d2c] border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-sky-500 transition"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                      Primary CTA Target URL
+                    </label>
+                    <input
+                      type="text"
+                      value={settingsForm.introPrimaryCtaUrl || ''}
+                      onChange={(e) =>
+                        setSettingsForm({ ...settingsForm, introPrimaryCtaUrl: e.target.value })
+                      }
+                      placeholder="https://t.me/virallinkhub_official"
+                      className="w-full bg-[#181d2c] border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-sky-500 transition font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                      Secondary CTA Button Text
+                    </label>
+                    <input
+                      type="text"
+                      value={settingsForm.introSecondaryCtaText || ''}
+                      onChange={(e) =>
+                        setSettingsForm({ ...settingsForm, introSecondaryCtaText: e.target.value })
+                      }
+                      placeholder="Browse Movies"
+                      className="w-full bg-[#181d2c] border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-sky-500 transition"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                      Secondary CTA Target URL
+                    </label>
+                    <input
+                      type="text"
+                      value={settingsForm.introSecondaryCtaUrl || ''}
+                      onChange={(e) =>
+                        setSettingsForm({ ...settingsForm, introSecondaryCtaUrl: e.target.value })
+                      }
+                      placeholder="#browse-catalog"
+                      className="w-full bg-[#181d2c] border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-sky-500 transition font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                      Community Section Title
+                    </label>
+                    <input
+                      type="text"
+                      value={settingsForm.communitySectionTitle || ''}
+                      onChange={(e) =>
+                        setSettingsForm({ ...settingsForm, communitySectionTitle: e.target.value })
+                      }
+                      placeholder="Official Telegram Ecosystem"
+                      className="w-full bg-[#181d2c] border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-sky-500 transition"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                      Community Section Subtitle
+                    </label>
+                    <input
+                      type="text"
+                      value={settingsForm.communitySectionSubtitle || ''}
+                      onChange={(e) =>
+                        setSettingsForm({ ...settingsForm, communitySectionSubtitle: e.target.value })
+                      }
+                      placeholder="Join our verified channels, discussion groups, and interactive bots"
+                      className="w-full bg-[#181d2c] border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-sky-500 transition"
+                    />
                   </div>
                 </div>
               </div>
